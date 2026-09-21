@@ -29,6 +29,14 @@
   ],
   "author": "Calbona",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Calbona/sparse-vector.git"
+  },
+  "homepage": "https://github.com/Calbona/sparse-vector#readme",
+  "bugs": {
+    "url": "https://github.com/Calbona/sparse-vector/issues"
+  },
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^26.6.2",
