@@ -29,7 +29,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Calbona/sparse-vector.git"
+    "url": "git+https://github.com/Calbona/sparse-vector.git",
+    "directory": "typescript"
   },
   "homepage": "https://github.com/Calbona/sparse-vector#readme",
   "bugs": {

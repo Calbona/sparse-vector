@@ -2,24 +2,72 @@
 
 # sparse-vector
 
-TypeScript 的稀疏向量：一个从整数下标到任意值的映射，只存储与空位默认值不同的位置
+稀疏向量：一个从整数下标到任意值的映射，只存储与默认值不同的位置
+
+## 概念
 
 下标可以为负，也不必连续
 
 所以一个只有三个条目的向量就只占三个条目 —— 无论这三个下标是 `0, 1, 2` 还是 `-10^9, 0, 10^9`
 
-本库刻意**不是**数学意义上的向量
+本库刻意**不是**数学意义上的向量。它不带任何运算，它就是一个数据结构，仅此而已
 
-## 安装
+## 实现
+
+同一个类型在三种语言中提供，以下每一条规则它们都共有 —— 只是写法不同
+
+| 语言 | 包 | 目录 | 状态 |
+| --- | --- | --- | --- |
+| TypeScript | `@calbona/sparse-vector` | [`typescript/`](../typescript/) | 已发布 |
+| C++ | — | [`c++/`](../c++/) | 计划中 |
+| Rust | `sparse-vector-rs` | [`rust/`](../rust/) | 计划中 |
+
+每个实现目录都有自己的 README，里面有该语言的安装、用法与 API 参考。本页定义它们共有的语义，这样就不必重复写三遍
+
+## 各实现共有的语义
+
+### 空位默认值
+
+创建向量时会指定一个默认值：所有没有显式条目的位置所报告的值。除非另行给定，它缺省为 number 类型的 `0`
+
+默认值之后可以替换。替换时会立即剔除所有与新默认值相等的条目
+
+因为每个位置都有确定的值，取值总是有结果的。任何整数 —— 无论是否存储过、在范围内还是远在范围之外 —— 都会返回一个值，而不会抛错
+
+### 等于默认值的条目永远不被保留
+
+往某个位置写入默认值，等同于把那里原有的东西删掉。正是这一点让结构保持稀疏：内存为 O(k)，k 是真正与默认值不同的条目数 —— 无论这些下标彼此相隔多远，或者负到什么程度
+
+### 剔除采用严格相等
+
+每种语言都用自己最严格的相等来判断剔除 —— TypeScript 用 `===`，C++ 用 `==`，Rust 用 `PartialEq`。由此有两个推论：
+
+- `0`、`'0'`、`false`、`null` 是四个不同的值，只有完全相等才会剔除一条条目
+- `NaN` 与 `NaN` 不严格相等，所以即使默认值本身就是 `NaN`，存进去的 `NaN` 依然会被保留
+
+### 序列化
+
+一个条目是一个恰好含两个键的普通对象：
+
+| 键 | 类型 | 含义 |
+| --- | --- | --- |
+| `index` | 整数 | 位置，可负可不负 |
+| `value` | 任意 | 存储在该处的值 |
+
+向量的序列化结果只有条目本身，按下标升序。默认值不在这套结构里，因此往返时要把默认值一并带上
+
+## TypeScript
+
+### 安装
 
 ```sh
-npm install sparse-vector
+npm install @calbona/sparse-vector
 ```
 
-## 用法
+### 用法
 
 ```ts
-import { SV_vector } from 'sparse-vector';
+import { SV_vector } from '@calbona/sparse-vector';
 
 const vector = new SV_vector(); // 空位默认值：number 类型的 0
 
@@ -49,9 +97,9 @@ const tagged = new SV_vector<unknown>();
 tagged.set(0, { kind: 'header' });
 ```
 
-## API
+### API
 
-### `new SV_vector<T>(defaultValue?)`
+#### `new SV_vector<T>(defaultValue?)`
 
 创建向量
 
@@ -59,14 +107,14 @@ tagged.set(0, { kind: 'header' });
 
 `T` 缺省为 `number`
 
-### 属性
+#### 属性
 
 | 成员 | 说明 |
 | --- | --- |
 | `defaultValue: T` | 可读可写，赋值时会立即剔除所有严格等于新默认值的条目 |
 | `size: number` | 显式存储的条目数 |
 
-### 方法
+#### 方法
 
 | 方法 | 说明 |
 | --- | --- |
@@ -86,11 +134,11 @@ tagged.set(0, { kind: 'header' });
 
 取用数据范围之外的位置不会抛错，而是返回默认值，这正是这个类型的意义所在
 
-### `SV_vector.from(elements, defaultValue?)`
+#### `SV_vector.from(elements, defaultValue?)`
 
 由 `SV_element` 的可迭代对象构造，严格等于默认值的条目会被丢弃；同一下标重复出现时以最后一个为准
 
-### `SV_element<T>`
+#### `SV_element<T>`
 
 ```ts
 interface SV_element<T = number> {
@@ -99,25 +147,14 @@ interface SV_element<T = number> {
 }
 ```
 
-这是序列化格式：一个恰好含 `index` 与 `value` 两个键的普通 JSON 对象
-
-注意 `toJSON()` 只输出条目本身，默认值不在这套结构里，因此 JSON 往返时要把默认值一并带上
+即上文所述的序列化形状。往返时这样写：
 
 ```ts
 const json = JSON.stringify(vector);
 const restored = SV_vector.from(JSON.parse(json) as SV_element<T>[], vector.defaultValue);
 ```
 
-## 剔除规则
-
-等于空位默认值的条目永远不被保留
-
-剔除采用**严格相等**判断，由此有两个推论：
-
-- `0`、`'0'`、`false`、`null` 是四个不同的值，只有 `===` 全等才会被剔除
-- `NaN` 与 `NaN` 不严格相等，所以即使默认值本身就是 `NaN`，存进去的 `NaN` 依然会被保留
-
-## 开发
+### 开发
 
 ```sh
 npm run build      # 编译到 dist/
@@ -129,6 +166,14 @@ npm test           # 先编译，再测试
 
 本库本身没有运行时依赖
 
-## License
+## C++
+
+尚未发布。计划提供的类型是 `SV_vector` 与 `SV_element`，与上面各语言共享同一套语义
+
+## Rust
+
+尚未发布。计划在 `sparse-vector-rs` crate 中提供 `SparseVector` 与 `Element`，与上面各语言共享同一套语义
+
+## 许可证
 
 MIT

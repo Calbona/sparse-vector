@@ -2,132 +2,57 @@
 
 # sparse-vector
 
-A sparse vector for TypeScript: a mapping from integer indices to arbitrary values, storing only the positions that differ from a default value
+A sparse vector: a mapping from integer indices to arbitrary values, storing only the positions that differ from a default value
 
 Indices may be negative, and they need not be contiguous
 
 So a vector with only three entries occupies only three entries — whether those three indices are `0, 1, 2` or `-10^9, 0, 10^9`
 
-This library is deliberately **not** a vector in the mathematical sense
+This library is deliberately **not** a vector in the mathematical sense. It carries no arithmetic; it is a data structure, and only that
 
-## Installation
+## Implementations
 
-```sh
-npm install sparse-vector
-```
+The same type is offered in three languages. They share every rule below — only the spelling differs
 
-## Usage
+| Language | Package | Directory | Status |
+| --- | --- | --- | --- |
+| TypeScript | `@calbona/sparse-vector` | [`typescript/`](typescript/) | released |
+| C++ | — | [`c++/`](c++/) | planned |
+| Rust | `sparse-vector-rs` | [`rust/`](rust/) | planned |
 
-```ts
-import { SV_vector } from 'sparse-vector';
+Each implementation directory holds its own README with that language's installation, usage and API reference. This page defines the semantics they have in common, so they do not have to be restated three times
 
-const vector = new SV_vector(); // default value for empty positions: the number 0
+## Semantics shared by every implementation
 
-vector.set(1_000_000, 'far away');
-vector.set(-42, 'negative');
+### The default value
 
-vector.get(1_000_000); // 'far away'
-vector.get(-42);       // 'negative'
-vector.get(7);         // 0
-vector.size;           // 2
-```
+A vector is created with a default value: the value reported for every position that holds no explicit entry. It defaults to the number `0` unless one is given
 
-The default value can be given, and changed later; every position without an explicit entry reads back as it
+The default value can be replaced later. Replacing it immediately drops every entry that compares equal to the new default
 
-```ts
-const counts = new SV_vector<number | null>(null); // empty positions are null
-counts.set(3, 1);
-counts.get(4); // null
+Because every position has a defined value, reading is total. Any integer — stored or not, in range or far outside it — returns a value rather than raising
 
-counts.defaultValue = 0; // empty positions are now 0
-```
+### An entry equal to the default is never kept
 
-Values are unrestricted; anything goes
+Writing the default value into a position is the same as removing whatever was there. This is what keeps the structure sparse: memory is O(k) in the number of entries that actually differ from the default, no matter how far apart the indices are or how negative they get
 
-```ts
-const tagged = new SV_vector<unknown>();
-tagged.set(0, { kind: 'header' });
-```
+### Pruning uses strict equality
 
-## API
+Each language prunes with its own strictest equality — `===` in TypeScript, `==` in C++, `PartialEq` in Rust. Two consequences:
 
-### `new SV_vector<T>(defaultValue?)`
+- `0`, `'0'`, `false` and `null` are four different values; only an exact match drops an entry
+- `NaN` never equals itself, so a stored `NaN` survives even when the default value is itself `NaN`
 
-Creates a vector
+### Serialization
 
-`defaultValue` is the default value for empty positions, i.e. the value reported for every position without an explicit entry; it defaults to the number `0`
+An entry is a plain object with exactly two keys:
 
-`T` defaults to `number`
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `index` | integer | the position, negative or not |
+| `value` | anything | the value stored there |
 
-### Properties
-
-| Member | Description |
-| --- | --- |
-| `defaultValue: T` | Readable and writable; assigning it immediately drops every entry strictly equal to the new default |
-| `size: number` | Number of explicitly stored entries |
-
-### Methods
-
-| Method | Description |
-| --- | --- |
-| `get(index): T` | The value at `index`; returns `defaultValue` when no explicit entry is there |
-| `set(index, value): this` | Insert or update, chainable |
-| `has(index): boolean` | Whether an explicit entry exists at `index` |
-| `delete(index): boolean` | Remove the explicit entry there, back to the default value |
-| `clear(): void` | Remove every explicit entry, back to the default value |
-| `elements(): SV_element<T>[]` | The explicit entries, in ascending index order |
-| `keys(): number[]` | The stored indices, ascending |
-| `values(): T[]` | The stored values, in ascending index order |
-| `clone(): SV_vector<T>` | An independent copy |
-| `[Symbol.iterator]()` | Iterates the explicit entries in ascending index order |
-| `toJSON(): SV_element<T>[]` | Same as `elements()`, so `JSON.stringify` works directly |
-
-`index` must be an integer — positive or negative; a non-integer throws `TypeError`
-
-Reading a position outside the data range does not throw, it returns the default value: that is the whole point of this type
-
-### `SV_vector.from(elements, defaultValue?)`
-
-Builds from an iterable of `SV_element`; entries strictly equal to the default are dropped; for a repeated index the last one wins
-
-### `SV_element<T>`
-
-```ts
-interface SV_element<T = number> {
-  index: number;
-  value: T;
-}
-```
-
-This is the serialization format: a plain JSON object with exactly the two keys `index` and `value`
-
-Note that `toJSON()` outputs the entries only, the default value is not part of this structure, so carry it along on a JSON round trip
-
-```ts
-const json = JSON.stringify(vector);
-const restored = SV_vector.from(JSON.parse(json) as SV_element<T>[], vector.defaultValue);
-```
-
-## Pruning rules
-
-An entry equal to the default value for empty positions is never kept
-
-Pruning uses **strict equality**, which has two consequences:
-
-- `0`, `'0'`, `false` and `null` are four different values; only a `===` match is dropped
-- `NaN` is not strictly equal to `NaN`, so a stored `NaN` is kept even when the default value is itself `NaN`
-
-## Development
-
-```sh
-npm run build      # compile to dist/
-npm run typecheck  # typecheck src and tests
-npm test           # build first, then test
-```
-
-Requires Node 24+
-
-The library itself has no runtime dependencies
+A vector serializes to its entries alone, in ascending index order. The default value is not part of this shape, so carry it alongside on a round trip
 
 ## License
 
