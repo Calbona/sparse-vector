@@ -2,15 +2,36 @@
   "name": "sparse-vector",
   "version": "1.0.0",
   "description": "A sparse vector library for TypeScript, providing compact data structures and essential operations.",
-  "main": "",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
-  "keywords": [],
-  "author": "",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "test": "npm run build && node --test \"test/*.test.mts\"",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "sparse",
+    "vector",
+    "sparse-vector",
+    "data-structure",
+    "typescript"
+  ],
+  "author": "Calbona",
   "license": "MIT",
   "type": "commonjs",
-  "dependencies": {
+  "devDependencies": {
+    "@types/node": "^26.6.2",
     "typescript": "^7.0.2"
   }
 }
