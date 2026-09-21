@@ -1,6 +1,6 @@
 {
   "name": "@calbona/sparse-vector",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A sparse vector library for TypeScript, providing compact data structures and essential operations.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
