@@ -1,0 +1,16 @@
+{
+  "name": "sparse-vector",
+  "version": "1.0.0",
+  "description": "A sparse vector library for TypeScript, providing compact data structures and essential operations.",
+  "main": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "typescript": "^7.0.2"
+  }
+}
