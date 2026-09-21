@@ -2,13 +2,7 @@
 
 # @calbona/sparse-vector
 
-The TypeScript implementation of [sparse-vector](https://github.com/Calbona/sparse-vector#readme) — a mapping from integer indices to arbitrary values that stores only the positions differing from a default value. That page defines the semantics all three implementations share; this one covers the TypeScript API
-
-## Installation
-
-```sh
-npm install @calbona/sparse-vector
-```
+The TypeScript implementation of [sparse-vector](https://github.com/Calbona/sparse-vector#readme) — a mapping from integer indices to arbitrary values that stores only the positions differing from a default value. That page carries the [installation steps](https://github.com/Calbona/sparse-vector#installation) and the semantics all three implementations share; this one covers the TypeScript API
 
 ## Usage
 

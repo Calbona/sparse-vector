@@ -16,13 +16,46 @@
 
 同じ型を三つの言語で提供している。以下に挙げる規則はすべて共通で、違いは綴りだけである
 
-| 言語 | パッケージ | ディレクトリ | 状態 |
-| --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | [`typescript/`](../typescript/) | リリース済み |
-| C++ | — | [`c++/`](../c++/) | 予定 |
-| Rust | `sparse-vector-rs` | [`rust/`](../rust/) | 予定 |
+| 言語 | パッケージ | バージョン | ディレクトリ | 状態 |
+| --- | --- | --- | --- | --- |
+| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](../typescript/) | リリース済み |
+| C++ | `sparse-vector` | 1.0.0 | [`c++/`](../c++/) | リリース済み |
+| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](../rust/) | リリース済み |
 
-各実装のディレクトリには、その言語のインストール・使い方・API リファレンスを記した README がある。このページでは三つの実装に共通するセマンティクスを定義し、三度繰り返さずに済むようにしている
+三つのパッケージはそれぞれ独立に採番されているため、バージョン番号は異なる。現時点で三者のセマンティクスは同一である
+
+## インストール
+
+**TypeScript**
+
+```sh
+npm install @calbona/sparse-vector
+```
+
+**C++** —— vcpkg や Conan へはまだリリースされていない。ヘッダは二つだけでリンクするものはなく、CMake からリポジトリを指せばよい：
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(sparse-vector
+  GIT_REPOSITORY https://github.com/Calbona/sparse-vector
+  GIT_TAG main
+  SOURCE_SUBDIR c++
+)
+FetchContent_MakeAvailable(sparse-vector)
+
+target_link_libraries(your-target PRIVATE Calbona::sparse-vector)
+```
+
+プロジェクトの隣にチェックアウトを置く場合も同じで、`add_subdirectory(path/to/sparse-vector/c++)` と書く。インストール先には CMake パッケージもエクスポートされるので、`find_package(sparse-vector)` も使える
+
+**Rust** —— 取り込む crate 名は、パッケージ名ではなく `sparse_vector` である点に注意：
+
+```sh
+cargo add sparse-vector-rs
+```
+
+各実装のディレクトリには、その言語の使い方・API リファレンスを記した README がある。このページでは三つの実装に共通するセマンティクスを定義し、三度繰り返さずに済むようにしている
 
 ## すべての実装に共通するセマンティクス
 
@@ -38,12 +71,18 @@
 
 ある位置に既定値を書き込むことは、そこにあったものを取り除くのと同じである。これがこの構造を疎に保つ：メモリは既定値と実際に異なる要素の数 k に対して O(k) であり、添字がどれだけ離れていても、どれだけ負であっても変わらない
 
-### 取り除きは厳密等価で行う
+### 取り除きは各言語自身の等価判定で行う
 
-取り除きには各言語の最も厳密な等価判定を使う —— TypeScript なら `===`、C++ なら `==`、Rust なら `PartialEq`。そこから二つの帰結が出る：
+ある項目が新しい既定値と等しいと判定されたときに取り除かれる。使うのはその言語の日常的な等価判定である —— TypeScript なら `===`、C++ なら `operator==`、Rust なら `PartialEq`
 
-- `0`、`'0'`、`false`、`null` は四つの異なる値であり、完全に一致したものだけが取り除かれる
-- `NaN` と `NaN` は厳密には等しくないので、既定値自体が `NaN` であっても、格納した `NaN` は保持される
+数値と文字列については三者が完全に一致する。厄介な場合も含めて：
+
+- `-0.0` は `0.0` と等しいので、既定値が `0.0` のとき格納した `-0.0` は取り除かれる
+- `NaN` はそれ自身と等しくないので、既定値自体が `NaN` であっても、格納した `NaN` は保持される
+
+TypeScript の `0`、`'0'`、`false`、`null` は四つの異なる型の値であり、完全に一致したものだけが取り除かれる。静的型付けのベクタは単一の `T` しか持てないため、C++ と Rust ではこの組はそもそも現れない —— ただしそこで示されている規則、すなわち「等価判定は正確であり、暗黙の変換をしない」は三者すべてで成り立つ
+
+オブジェクトについては三者が本当に分かれる。そしてここが、値の「同一性」が唯一見える場所である。TypeScript の `===` はオブジェクトの参照を比較し、`operator==` と `PartialEq` はふつう構造を比較する。内容が同じで互いに独立した二つのオブジェクトは、TypeScript では一つの値、C++ と Rust では二つの値である —— したがって内容が同じで独立した項目は、前者では保持され、後二者では取り除かれる。同一性が必要なら、それを型自身の等価判定に組み込めばよい —— ポインタ型を使えばそのまま得られる。`std::shared_ptr` の `operator==` はポインタを比較し、`Rc<T>` は `Rc::ptr_eq` で比較する newtype で包めばよい。C++ と Rust の README にそれぞれその書き方がある
 
 ### シリアライズ
 
@@ -51,128 +90,22 @@
 
 | キー | 型 | 意味 |
 | --- | --- | --- |
-| `index` | 整数 | 位置。負でもよい |
+| `index` | 整数 | 位置。負でも負でなくてもよい |
 | `value` | 任意 | そこに格納されている値 |
 
 ベクトルは要素だけを添字の昇順でシリアライズする。既定値はこの形式には含まれないので、往復させる際は一緒に持ち回る必要がある
 
 ## TypeScript
 
-### インストール
-
-```sh
-npm install @calbona/sparse-vector
-```
-
-### 使い方
-
-```ts
-import { SV_vector } from '@calbona/sparse-vector';
-
-const vector = new SV_vector(); // 空き位置の既定値：number の 0
-
-vector.set(1_000_000, '遠い');
-vector.set(-42, '負');
-
-vector.get(1_000_000); // '遠い'
-vector.get(-42);       // '負'
-vector.get(7);         // 0
-vector.size;           // 2
-```
-
-空き位置の既定値は指定でき、あとから変更もできる。明示的な要素がない位置はすべてこの値として読める
-
-```ts
-const counts = new SV_vector<number | null>(null); // 空き位置は null
-counts.set(3, 1);
-counts.get(4); // null
-
-counts.defaultValue = 0; // 空き位置が 0 になる
-```
-
-値の型は制限されない。何でもよい
-
-```ts
-const tagged = new SV_vector<unknown>();
-tagged.set(0, { kind: 'header' });
-```
-
-### API
-
-#### `new SV_vector<T>(defaultValue?)`
-
-ベクトルを生成する
-
-`defaultValue` は空き位置の既定値、つまり明示的な要素がないすべての位置が返す値で、省略時は number の `0`
-
-`T` の省略時は `number`
-
-#### プロパティ
-
-| メンバー | 説明 |
-| --- | --- |
-| `defaultValue: T` | 読み書き可能。代入すると、新しい既定値と厳密に等しい要素が即座に取り除かれる |
-| `size: number` | 明示的に格納されている要素数 |
-
-#### メソッド
-
-| メソッド | 説明 |
-| --- | --- |
-| `get(index): T` | `index` の値。そこに明示的な要素がなければ `defaultValue` を返す |
-| `set(index, value): this` | 挿入または更新。チェーンできる |
-| `has(index): boolean` | `index` に明示的な要素があるか |
-| `delete(index): boolean` | そこの明示的な要素を削除し、既定値に戻す |
-| `clear(): void` | すべての明示的な要素を削除し、既定値に戻す |
-| `elements(): SV_element<T>[]` | 明示的な要素を添字の昇順で |
-| `keys(): number[]` | 格納されている添字を昇順で |
-| `values(): T[]` | 格納されている値を添字の昇順で |
-| `clone(): SV_vector<T>` | 複製 |
-| `[Symbol.iterator]()` | 明示的な要素を添字の昇順で反復する |
-| `toJSON(): SV_element<T>[]` | `elements()` と同じ。したがって `JSON.stringify` がそのまま使える |
-
-`index` は整数でなければならない —— 正でも負でもよい。整数でなければ `TypeError` を投げる
-
-データの範囲外の位置を読んでも例外にはならず既定値を返す。これがこの型の存在意義である
-
-#### `SV_vector.from(elements, defaultValue?)`
-
-`SV_element` の反復可能オブジェクトから構築する。既定値と厳密に等しい要素は捨てられる。同じ添字が繰り返された場合は最後のものが優先される
-
-#### `SV_element<T>`
-
-```ts
-interface SV_element<T = number> {
-  index: number;
-  value: T;
-}
-```
-
-上文で述べたシリアライズ形式である。往復させる場合はこう書く：
-
-```ts
-const json = JSON.stringify(vector);
-const restored = SV_vector.from(JSON.parse(json) as SV_element<T>[], vector.defaultValue);
-```
-
-### 開発
-
-```sh
-npm run build      # dist/ にコンパイル
-npm run typecheck  # src とテストの型を検査
-npm test           # 先にコンパイルし、その後テスト
-```
-
-Node 24+ が必要
-
-このライブラリ自体に実行時依存はない
+リリース済み（`@calbona/sparse-vector`）。使い方・API リファレンスは [`typescript/README.md`](../typescript/README.md) を参照
 
 ## C++
 
-まだリリースされていない。`SV_vector` と `SV_element` として提供する予定である
+ヘッダオンリーの C++17 実装で、リポジトリから取り込む。vcpkg や Conan へはまだ入っていない。使い方・API リファレンスは [`c++/README.md`](../c++/README.md) を参照
 
 ## Rust
 
-まだリリースされていない。`sparse-vector-rs` クレートで `SparseVector` と `Element` として提供する予定である
+`sparse-vector-rs` としてリリース済み。使い方・API リファレンスは [`rust/README.md`](../rust/README.md) を参照
 
 ## ライセンス
 

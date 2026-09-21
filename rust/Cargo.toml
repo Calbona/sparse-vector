@@ -2,5 +2,18 @@
 name = "sparse-vector-rs"
 version = "1.0.0"
 edition = "2024"
+rust-version = "1.85"
+description = "A sparse vector: a mapping from integer index to arbitrary value that stores only the positions differing from a default value."
+license = "MIT"
+repository = "https://github.com/Calbona/sparse-vector"
+homepage = "https://github.com/Calbona/sparse-vector#readme"
+documentation = "https://docs.rs/sparse-vector-rs"
+readme = "README.md"
+keywords = ["sparse", "vector", "sparse-vector", "data-structures"]
+categories = ["data-structures"]
+
+[lib]
+name = "sparse_vector"
+path = "src/lib.rs"
 
 [dependencies]

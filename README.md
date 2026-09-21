@@ -14,13 +14,46 @@ This library is deliberately **not** a vector in the mathematical sense. It carr
 
 The same type is offered in three languages. They share every rule below — only the spelling differs
 
-| Language | Package | Directory | Status |
-| --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | [`typescript/`](typescript/) | released |
-| C++ | — | [`c++/`](c++/) | planned |
-| Rust | `sparse-vector-rs` | [`rust/`](rust/) | planned |
+| Language | Package | Version | Directory | Status |
+| --- | --- | --- | --- | --- |
+| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](typescript/) | released |
+| C++ | `sparse-vector` | 1.0.0 | [`c++/`](c++/) | released |
+| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](rust/) | released |
 
-Each implementation directory holds its own README with that language's installation, usage and API reference. This page defines the semantics they have in common, so they do not have to be restated three times
+Each package is versioned independently, so the numbers differ. All three implement the same semantics.
+
+## Installation
+
+**TypeScript**
+
+```sh
+npm install @calbona/sparse-vector
+```
+
+**C++** — not yet in vcpkg or Conan. Two headers and nothing to link, so point CMake at the repository:
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(sparse-vector
+  GIT_REPOSITORY https://github.com/Calbona/sparse-vector
+  GIT_TAG main
+  SOURCE_SUBDIR c++
+)
+FetchContent_MakeAvailable(sparse-vector)
+
+target_link_libraries(your-target PRIVATE Calbona::sparse-vector)
+```
+
+A checkout sitting beside your project works the same way, with `add_subdirectory(path/to/sparse-vector/c++)`. An install prefix exports a CMake package too, so `find_package(sparse-vector)` works
+
+**Rust** — note that the crate you import is `sparse_vector`, not the package name:
+
+```sh
+cargo add sparse-vector-rs
+```
+
+Each implementation directory holds its own README covering that language's usage and API reference. This page defines the semantics they share, so they do not have to be restated three times
 
 ## Semantics shared by every implementation
 
@@ -36,12 +69,18 @@ Because every position has a defined value, reading is total. Any integer — st
 
 Writing the default value into a position is the same as removing whatever was there. This is what keeps the structure sparse: memory is O(k) in the number of entries that actually differ from the default, no matter how far apart the indices are or how negative they get
 
-### Pruning uses strict equality
+### Pruning uses each language's own equality
 
-Each language prunes with its own strictest equality — `===` in TypeScript, `==` in C++, `PartialEq` in Rust. Two consequences:
+An entry is dropped when it compares equal to the default value, using the language's ordinary equality — `===` in TypeScript, `operator==` in C++, `PartialEq` in Rust
 
-- `0`, `'0'`, `false` and `null` are four different values; only an exact match drops an entry
+For numbers and strings the three agree exactly, the awkward cases included:
+
+- `-0.0` equals `0.0`, so a stored `-0.0` is dropped when the default is `0.0`
 - `NaN` never equals itself, so a stored `NaN` survives even when the default value is itself `NaN`
+
+TypeScript's `0`, `'0'`, `false` and `null` are four values of four types, and only an exact match drops an entry. A statically typed vector holds a single `T`, so that particular set cannot arise in C++ or Rust — but the rule it illustrates, that equality is exact rather than coercing, holds in all three
+
+For objects the three genuinely part ways, and this is the one place where a value's *identity* is visible. TypeScript's `===` compares object references; `operator==` and `PartialEq` are usually structural. Two distinct objects with equal contents are one value in TypeScript and two in C++ and Rust, so an entry holding an equal-but-distinct object is kept by the first and pruned by the other two. When identity is what you want, make it part of the type's equality — a pointer type gets there for free, since `std::shared_ptr`'s `operator==` compares pointers, and an `Rc<T>` can be wrapped in a newtype comparing with `Rc::ptr_eq`. The C++ and Rust READMEs each give that recipe
 
 ### Serialization
 

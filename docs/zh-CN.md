@@ -16,13 +16,46 @@
 
 同一个类型在三种语言中提供，以下每一条规则它们都共有 —— 只是写法不同
 
-| 语言 | 包 | 目录 | 状态 |
-| --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | [`typescript/`](../typescript/) | 已发布 |
-| C++ | — | [`c++/`](../c++/) | 计划中 |
-| Rust | `sparse-vector-rs` | [`rust/`](../rust/) | 计划中 |
+| 语言 | 包 | 版本 | 目录 | 状态 |
+| --- | --- | --- | --- | --- |
+| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](../typescript/) | 已发布 |
+| C++ | `sparse-vector` | 1.0.0 | [`c++/`](../c++/) | 已发布 |
+| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](../rust/) | 已发布 |
 
-每个实现目录都有自己的 README，里面有该语言的安装、用法与 API 参考。本页定义它们共有的语义，这样就不必重复写三遍
+三个包各自独立编号，所以版本号不同。目前三者实现的语义是一致的
+
+## 安装
+
+**TypeScript**
+
+```sh
+npm install @calbona/sparse-vector
+```
+
+**C++** —— 尚未发布到 vcpkg 或 Conan。只有两个头文件、无需链接，让 CMake 指向仓库即可：
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(sparse-vector
+  GIT_REPOSITORY https://github.com/Calbona/sparse-vector
+  GIT_TAG main
+  SOURCE_SUBDIR c++
+)
+FetchContent_MakeAvailable(sparse-vector)
+
+target_link_libraries(your-target PRIVATE Calbona::sparse-vector)
+```
+
+放在项目旁边的检出目录同样可行，写 `add_subdirectory(path/to/sparse-vector/c++)`。安装到前缀后也会导出 CMake 包，因此 `find_package(sparse-vector)` 也可用
+
+**Rust** —— 注意导入的 crate 名是 `sparse_vector`，不是包名：
+
+```sh
+cargo add sparse-vector-rs
+```
+
+每个实现目录都有自己的 README，里面有该语言的用法与 API 参考。本页定义它们共有的语义，这样就不必重复写三遍
 
 ## 各实现共有的语义
 
@@ -38,12 +71,18 @@
 
 往某个位置写入默认值，等同于把那里原有的东西删掉。正是这一点让结构保持稀疏：内存为 O(k)，k 是真正与默认值不同的条目数 —— 无论这些下标彼此相隔多远，或者负到什么程度
 
-### 剔除采用严格相等
+### 剔除采用各语言自己的相等判定
 
-每种语言都用自己最严格的相等来判断剔除 —— TypeScript 用 `===`，C++ 用 `==`，Rust 用 `PartialEq`。由此有两个推论：
+一条条目与新默认值比较相等时会被剔除，用的是该语言日常的相等 —— TypeScript 用 `===`，C++ 用 `operator==`，Rust 用 `PartialEq`
 
-- `0`、`'0'`、`false`、`null` 是四个不同的值，只有完全相等才会剔除一条条目
-- `NaN` 与 `NaN` 不严格相等，所以即使默认值本身就是 `NaN`，存进去的 `NaN` 依然会被保留
+对数字和字符串，三者完全一致，包括那些别扭的情形：
+
+- `-0.0` 等于 `0.0`，所以默认值为 `0.0` 时，存进去的 `-0.0` 会被剔除
+- `NaN` 不等于它自己，所以即使默认值本身就是 `NaN`，存进去的 `NaN` 依然会被保留
+
+TypeScript 的 `0`、`'0'`、`false`、`null` 是四个不同类型的值，只有完全相等才会剔除一条条目。静态类型的向量只持有单一的 `T`，所以在 C++ 和 Rust 里这一组值根本不会出现 —— 但它说明的规则「相等是精确的，不做隐式转换」在三者中都成立
+
+对对象而言三者才真正分道扬镳，而这是值的「同一性」唯一可见的地方。TypeScript 的 `===` 比较的是对象的引用，`operator==` 与 `PartialEq` 通常比较的是结构。两个内容相同但彼此独立的对象，在 TypeScript 里是一个值，在 C++ 和 Rust 里是两个值 —— 所以一条内容相同但彼此独立的条目会被前者保留、被后两者剔除。需要同一性时，就把它做进类型自身的相等里 —— 用指针类型可以直接得到：`std::shared_ptr` 的 `operator==` 比较的是指针，`Rc<T>` 则可以用一个以 `Rc::ptr_eq` 比较的 newtype 包起来。C++ 与 Rust 的 README 各自给了这个写法
 
 ### 序列化
 
@@ -58,121 +97,15 @@
 
 ## TypeScript
 
-### 安装
-
-```sh
-npm install @calbona/sparse-vector
-```
-
-### 用法
-
-```ts
-import { SV_vector } from '@calbona/sparse-vector';
-
-const vector = new SV_vector(); // 空位默认值：number 类型的 0
-
-vector.set(1_000_000, '很远');
-vector.set(-42, '负数');
-
-vector.get(1_000_000); // '很远'
-vector.get(-42);       // '负数'
-vector.get(7);         // 0
-vector.size;           // 2
-```
-
-空位默认值可以指定，也可以之后修改；未存储的位置一律按它取值
-
-```ts
-const counts = new SV_vector<number | null>(null); // 空位是 null
-counts.set(3, 1);
-counts.get(4); // null
-
-counts.defaultValue = 0; // 空位改成 0
-```
-
-值的类型不受限制，什么都可以
-
-```ts
-const tagged = new SV_vector<unknown>();
-tagged.set(0, { kind: 'header' });
-```
-
-### API
-
-#### `new SV_vector<T>(defaultValue?)`
-
-创建向量
-
-`defaultValue` 是空位默认值，即所有未存储位置报告的值，缺省为 number 类型的 `0`
-
-`T` 缺省为 `number`
-
-#### 属性
-
-| 成员 | 说明 |
-| --- | --- |
-| `defaultValue: T` | 可读可写，赋值时会立即剔除所有严格等于新默认值的条目 |
-| `size: number` | 显式存储的条目数 |
-
-#### 方法
-
-| 方法 | 说明 |
-| --- | --- |
-| `get(index): T` | `index` 处的值；该处没有显式条目时返回 `defaultValue` |
-| `set(index, value): this` | 插入或修改，可链式调用 |
-| `has(index): boolean` | `index` 处是否存在显式条目 |
-| `delete(index): boolean` | 删除该处的显式条目，回到默认值 |
-| `clear(): void` | 删除所有显式条目，回到默认值 |
-| `elements(): SV_element<T>[]` | 显式条目，按下标升序 |
-| `keys(): number[]` | 已存储的下标，升序 |
-| `values(): T[]` | 已存储的值，按下标升序 |
-| `clone(): SV_vector<T>` | 克隆 |
-| `[Symbol.iterator]()` | 迭代显式条目，按下标升序 |
-| `toJSON(): SV_element<T>[]` | 等同 `elements()`，因此 `JSON.stringify` 可直接使用 |
-
-`index` 必须是整数 —— 可正可负；非整数会抛出 `TypeError`
-
-取用数据范围之外的位置不会抛错，而是返回默认值，这正是这个类型的意义所在
-
-#### `SV_vector.from(elements, defaultValue?)`
-
-由 `SV_element` 的可迭代对象构造，严格等于默认值的条目会被丢弃；同一下标重复出现时以最后一个为准
-
-#### `SV_element<T>`
-
-```ts
-interface SV_element<T = number> {
-  index: number;
-  value: T;
-}
-```
-
-即上文所述的序列化形状。往返时这样写：
-
-```ts
-const json = JSON.stringify(vector);
-const restored = SV_vector.from(JSON.parse(json) as SV_element<T>[], vector.defaultValue);
-```
-
-### 开发
-
-```sh
-npm run build      # 编译到 dist/
-npm run typecheck  # 检查 src 与测试的类型
-npm test           # 先编译，再测试
-```
-
-需要 Node 24+
-
-本库本身没有运行时依赖
+已发布为 `@calbona/sparse-vector`。用法与 API 参考见 [`typescript/README.md`](../typescript/README.md)
 
 ## C++
 
-尚未发布。计划提供的类型是 `SV_vector` 与 `SV_element`，与上面各语言共享同一套语义
+纯头文件的 C++17 实现，从仓库接入，尚未进入 vcpkg 或 Conan。用法与 API 参考见 [`c++/README.md`](../c++/README.md)
 
 ## Rust
 
-尚未发布。计划在 `sparse-vector-rs` crate 中提供 `SparseVector` 与 `Element`，与上面各语言共享同一套语义
+已发布为 `sparse-vector-rs`。用法与 API 参考见 [`rust/README.md`](../rust/README.md)
 
 ## 许可证
 

@@ -16,13 +16,46 @@ Cette bibliothèque n'est délibérément **pas** un vecteur au sens mathématiq
 
 Le même type est proposé dans trois langages. Ils partagent toutes les règles ci-dessous — seule l'écriture diffère
 
-| Langage | Paquet | Répertoire | État |
-| --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | [`typescript/`](../typescript/) | publié |
-| C++ | — | [`c++/`](../c++/) | prévu |
-| Rust | `sparse-vector-rs` | [`rust/`](../rust/) | prévu |
+| Langage | Paquet | Version | Répertoire | État |
+| --- | --- | --- | --- | --- |
+| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](../typescript/) | publié |
+| C++ | `sparse-vector` | 1.0.0 | [`c++/`](../c++/) | publié |
+| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](../rust/) | publié |
 
-Chaque répertoire d'implémentation possède son propre README, avec l'installation, l'utilisation et la référence d'API de ce langage. Cette page définit la sémantique qu'ils ont en commun, pour ne pas avoir à la répéter trois fois
+Chaque paquet est numéroté indépendamment, d'où des numéros différents. Les trois implémentent actuellement la même sémantique
+
+## Installation
+
+**TypeScript**
+
+```sh
+npm install @calbona/sparse-vector
+```
+
+**C++** — pas encore publiée sur vcpkg ni Conan. Deux en-têtes et rien à lier : il suffit d'indiquer le dépôt à CMake :
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(sparse-vector
+  GIT_REPOSITORY https://github.com/Calbona/sparse-vector
+  GIT_TAG main
+  SOURCE_SUBDIR c++
+)
+FetchContent_MakeAvailable(sparse-vector)
+
+target_link_libraries(your-target PRIVATE Calbona::sparse-vector)
+```
+
+Un checkout à côté de votre projet fonctionne de la même façon, avec `add_subdirectory(path/to/sparse-vector/c++)`. Un préfixe d'installation exporte aussi un paquet CMake, donc `find_package(sparse-vector)` fonctionne également
+
+**Rust** — à noter que le crate importé est `sparse_vector`, et non le nom du paquet :
+
+```sh
+cargo add sparse-vector-rs
+```
+
+Chaque répertoire d'implémentation possède son propre README, avec l'utilisation et la référence d'API de ce langage. Cette page définit la sémantique qu'ils ont en commun, pour ne pas avoir à la répéter trois fois
 
 ## Sémantique commune à toutes les implémentations
 
@@ -38,12 +71,18 @@ Comme chaque position a une valeur définie, la lecture est totale. Tout entier 
 
 Écrire la valeur par défaut dans une position revient à supprimer ce qui s'y trouvait. C'est ce qui garde la structure creuse : la mémoire est en O(k) selon le nombre d'entrées qui diffèrent réellement de la valeur par défaut, quelle que soit la distance entre les indices, et même s'ils sont très négatifs
 
-### L'écartement se fait par égalité stricte
+### L'écartement se fait par l'égalité propre à chaque langage
 
-Chaque langage écarte avec sa propre égalité la plus stricte — `===` en TypeScript, `==` en C++, `PartialEq` en Rust. D'où deux conséquences :
+Une entrée est écartée lorsqu'elle est égale à la nouvelle valeur par défaut, selon l'égalité ordinaire du langage — `===` en TypeScript, `operator==` en C++, `PartialEq` en Rust
 
-- `0`, `'0'`, `false` et `null` sont quatre valeurs distinctes ; seule une correspondance exacte écarte une entrée
+Pour les nombres et les chaînes, les trois coïncident exactement, y compris dans les cas délicats :
+
+- `-0.0` est égal à `0.0`, donc un `-0.0` stocké est écarté quand la valeur par défaut est `0.0`
 - `NaN` n'est jamais égal à lui-même, donc un `NaN` stocké est conservé même si la valeur par défaut est elle-même `NaN`
+
+En TypeScript, `0`, `'0'`, `false` et `null` sont quatre valeurs de quatre types, et seule une correspondance exacte écarte une entrée. Un vecteur à typage statique ne peut contenir qu'un seul `T` : cet ensemble précis ne peut donc pas se présenter en C++ ni en Rust — mais la règle qu'il illustre, à savoir que l'égalité est exacte et non coercitive, vaut dans les trois
+
+Pour les objets, en revanche, les trois divergent réellement, et c'est le seul endroit où l'*identité* d'une valeur devient visible. Le `===` de TypeScript compare des références d'objets ; `operator==` et `PartialEq` sont le plus souvent structurels. Deux objets distincts au contenu identique forment une seule valeur en TypeScript et deux en C++ et Rust : une entrée contenant un objet égal mais distinct est donc conservée par le premier et écartée par les deux autres. Quand c'est l'identité que vous voulez, intégrez-la à l'égalité du type lui-même — un type pointeur y suffit, puisque l'`operator==` de `std::shared_ptr` compare les pointeurs, et un `Rc<T>` peut être enveloppé dans un newtype comparant avec `Rc::ptr_eq`. Les README C++ et Rust donnent chacun cette recette
 
 ### Sérialisation
 
@@ -58,121 +97,15 @@ Un vecteur se sérialise en ses seules entrées, par indice croissant. La valeur
 
 ## TypeScript
 
-### Installation
-
-```sh
-npm install @calbona/sparse-vector
-```
-
-### Utilisation
-
-```ts
-import { SV_vector } from '@calbona/sparse-vector';
-
-const vector = new SV_vector(); // valeur par défaut des positions vides : le 0 de type number
-
-vector.set(1_000_000, 'très loin');
-vector.set(-42, 'négatif');
-
-vector.get(1_000_000); // 'très loin'
-vector.get(-42);       // 'négatif'
-vector.get(7);         // 0
-vector.size;           // 2
-```
-
-La valeur par défaut peut être fournie, puis modifiée plus tard ; toute position sans entrée explicite se lit comme elle
-
-```ts
-const counts = new SV_vector<number | null>(null); // les positions vides valent null
-counts.set(3, 1);
-counts.get(4); // null
-
-counts.defaultValue = 0; // les positions vides valent désormais 0
-```
-
-Le type des valeurs n'est pas restreint : tout est permis
-
-```ts
-const tagged = new SV_vector<unknown>();
-tagged.set(0, { kind: 'header' });
-```
-
-### API
-
-#### `new SV_vector<T>(defaultValue?)`
-
-Crée un vecteur
-
-`defaultValue` est la valeur par défaut des positions vides, c'est-à-dire la valeur rapportée pour toute position sans entrée explicite ; par défaut, le `0` de type number
-
-`T` vaut `number` par défaut
-
-#### Propriétés
-
-| Membre | Description |
-| --- | --- |
-| `defaultValue: T` | Lisible et modifiable ; l'affectation écarte immédiatement toutes les entrées strictement égales à la nouvelle valeur par défaut |
-| `size: number` | Nombre d'entrées stockées explicitement |
-
-#### Méthodes
-
-| Méthode | Description |
-| --- | --- |
-| `get(index): T` | La valeur en `index` ; renvoie `defaultValue` quand il n'y a pas d'entrée explicite à cet endroit |
-| `set(index, value): this` | Insère ou modifie ; chaînable |
-| `has(index): boolean` | Indique s'il existe une entrée explicite en `index` |
-| `delete(index): boolean` | Supprime l'entrée explicite à cet endroit et revient à la valeur par défaut |
-| `clear(): void` | Supprime toutes les entrées explicites et revient à la valeur par défaut |
-| `elements(): SV_element<T>[]` | Les entrées explicites, par indice croissant |
-| `keys(): number[]` | Les indices stockés, par ordre croissant |
-| `values(): T[]` | Les valeurs stockées, par indice croissant |
-| `clone(): SV_vector<T>` | Une copie indépendante |
-| `[Symbol.iterator]()` | Itère les entrées explicites par indice croissant |
-| `toJSON(): SV_element<T>[]` | Identique à `elements()`, donc `JSON.stringify` fonctionne directement |
-
-`index` doit être un entier — positif ou négatif ; un non-entier lève une `TypeError`
-
-Lire une position hors des données ne lève pas d'erreur, mais renvoie la valeur par défaut : c'est justement tout l'intérêt de ce type
-
-#### `SV_vector.from(elements, defaultValue?)`
-
-Construit à partir d'un itérable de `SV_element` ; les entrées strictement égales à la valeur par défaut sont écartées ; pour un indice répété, la dernière l'emporte
-
-#### `SV_element<T>`
-
-```ts
-interface SV_element<T = number> {
-  index: number;
-  value: T;
-}
-```
-
-La forme de sérialisation décrite plus haut. L'aller-retour s'écrit ainsi :
-
-```ts
-const json = JSON.stringify(vector);
-const restored = SV_vector.from(JSON.parse(json) as SV_element<T>[], vector.defaultValue);
-```
-
-### Développement
-
-```sh
-npm run build      # compile vers dist/
-npm run typecheck  # vérifie les types de src et des tests
-npm test           # compile d'abord, puis teste
-```
-
-Nécessite Node 24+
-
-La bibliothèque elle-même n'a aucune dépendance à l'exécution
+Publié (`@calbona/sparse-vector`). Usage et référence de l'API dans [`typescript/README.md`](../typescript/README.md)
 
 ## C++
 
-L'implémentation C++ n'est pas encore publiée. Les types prévus sont `SV_vector` et `SV_element`, avec la même sémantique que les autres langages ci-dessus
+Une implémentation C++17 entièrement en en-têtes, à prendre depuis le dépôt ; pas encore sur vcpkg ni Conan. Usage et référence de l'API dans [`c++/README.md`](../c++/README.md)
 
 ## Rust
 
-L'implémentation Rust n'est pas encore publiée. Les types `SparseVector` et `Element` sont prévus dans le crate `sparse-vector-rs`, avec la même sémantique que les autres langages ci-dessus
+Publié sous le nom `sparse-vector-rs`. Usage et référence de l'API dans [`rust/README.md`](../rust/README.md)
 
 ## Licence
 
