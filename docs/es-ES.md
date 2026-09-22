@@ -22,7 +22,7 @@ El mismo tipo se ofrece en tres lenguajes. Todos comparten las reglas de más ab
 | C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | publicado |
 | Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | publicado |
 
-Cada paquete se numera de forma independiente, por eso las versiones difieren. Ahora mismo los tres implementan la misma semántica
+Cada paquete se numera de forma independiente; el repositorio en su conjunto está en la versión 1.0.0. Ahora mismo los tres implementan la misma semántica
 
 ## Instalación
 

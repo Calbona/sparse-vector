@@ -20,7 +20,7 @@ The same type is offered in three languages. They share every rule below — onl
 | C++ | `sparse-vector` | 1.1.0 | [`c++/`](c++/) | released |
 | Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](rust/) | released |
 
-Each package is versioned independently, so the numbers differ. All three implement the same semantics.
+Each package is versioned independently; the repository as a whole is at version 1.0.0. All three implement the same semantics.
 
 ## Installation
 

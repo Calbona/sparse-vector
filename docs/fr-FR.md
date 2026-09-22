@@ -22,7 +22,7 @@ Le même type est proposé dans trois langages. Ils partagent toutes les règles
 | C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | publié |
 | Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | publié |
 
-Chaque paquet est numéroté indépendamment, d'où des numéros différents. Les trois implémentent actuellement la même sémantique
+Chaque paquet est numéroté indépendamment ; le dépôt dans son ensemble est en version 1.0.0. Les trois implémentent actuellement la même sémantique
 
 ## Installation
 
