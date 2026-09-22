@@ -18,9 +18,9 @@ Le même type est proposé dans trois langages. Ils partagent toutes les règles
 
 | Langage | Paquet | Version | Répertoire | État |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](../typescript/) | publié |
-| C++ | `sparse-vector` | 1.0.0 | [`c++/`](../c++/) | publié |
-| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](../rust/) | publié |
+| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](../typescript/) | publié |
+| C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | publié |
+| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | publié |
 
 Chaque paquet est numéroté indépendamment, d'où des numéros différents. Les trois implémentent actuellement la même sémantique
 

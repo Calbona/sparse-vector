@@ -18,9 +18,9 @@
 
 | 语言 | 包 | 版本 | 目录 | 状态 |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](../typescript/) | 已发布 |
-| C++ | `sparse-vector` | 1.0.0 | [`c++/`](../c++/) | 已发布 |
-| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](../rust/) | 已发布 |
+| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](../typescript/) | 已发布 |
+| C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | 已发布 |
+| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | 已发布 |
 
 三个包各自独立编号，所以版本号不同。目前三者实现的语义是一致的
 

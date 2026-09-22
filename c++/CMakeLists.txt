@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(sparse-vector
-  VERSION 1.0.0
+  VERSION 1.1.0
   DESCRIPTION "A sparse vector: a mapping from integer index to arbitrary value that stores only the positions differing from a default value."
   HOMEPAGE_URL "https://github.com/Calbona/sparse-vector"
   LANGUAGES CXX)

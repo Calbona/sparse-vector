@@ -16,9 +16,9 @@ The same type is offered in three languages. They share every rule below — onl
 
 | Language | Package | Version | Directory | Status |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](typescript/) | released |
-| C++ | `sparse-vector` | 1.0.0 | [`c++/`](c++/) | released |
-| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](rust/) | released |
+| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](typescript/) | released |
+| C++ | `sparse-vector` | 1.1.0 | [`c++/`](c++/) | released |
+| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](rust/) | released |
 
 Each package is versioned independently, so the numbers differ. All three implement the same semantics.
 

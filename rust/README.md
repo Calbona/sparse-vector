@@ -78,12 +78,50 @@ assert_eq!(vector.get(4), None); // empty positions are None
 | `elements(&self) -> Vec<Element<T>>` | The stored entries, in ascending index order. Requires `T: Clone` |
 | `keys(&self) -> Vec<i64>` | The stored indices, in ascending order |
 | `values(&self) -> Vec<T>` | The stored values, in ascending index order. Requires `T: Clone` |
+| `element(&self, n: usize) -> Element<T>` | The (n+1)-th stored entry from the left, i.e. `elements()[n]`. Requires `T: Clone` |
+| `element_index(&self, n: usize) -> i64` | The index that entry sits at |
+| `element_value(&self, n: usize) -> T` | Its value. Requires `T: Clone` |
+| `last_element(&self, n: usize) -> Element<T>` | The same counting from the right, so `last_element(0)` is the rightmost entry. Requires `T: Clone` |
+| `last_element_index(&self, n: usize) -> i64` | The index that entry sits at |
+| `last_element_value(&self, n: usize) -> T` | Its value. Requires `T: Clone` |
+| `left_significant_value(&self, n: i64) -> T` | The value `n` positions right of the first stored entry. Requires `T: Clone` |
+| `right_significant_value(&self, n: i64) -> T` | The value `n` positions left of the last stored entry. Requires `T: Clone` |
 | `iter(&self) -> Iter<'_, T>` | Borrows the stored entries in ascending index order |
 | `from_elements(elements, default) -> SparseVector<T>` | Builds from an `IntoIterator<Item = Element<T>>`. Requires `T: PartialEq` |
 
 `&SparseVector<T>` is also `IntoIterator`, so `for element in &vector` works and yields `Element<&T>`. `SparseVector<T>` implements `Default` whenever `T` does, which is the `T`-generic spelling of `with_default(T::default())`.
 
 `SparseVector<T>` implements `Clone` (an independent copy, default included) and `Debug` when `T` does. It deliberately has **no `PartialEq`**: this project has no equality semantics, and inventing some would be a decision the other implementations never made.
+
+The `n` the ordinal methods take numbers the *entries*, not the positions: `element(0)` is the leftmost stored entry, however far out its index lies. It is a `usize`, so an ordinal cannot be negative and a negative literal does not compile; an ordinal past the end panics. These walk the map rather than going through `elements()`, so reading one entry does not clone the whole array:
+
+```rust
+use sparse_vector::{Element, SparseVector};
+
+let mut vector = SparseVector::with_default("");
+vector.set(10, "a");
+vector.set(13, "d");
+
+assert_eq!(vector.element(0), Element { index: 10, value: "a" }); // the first entry stored
+assert_eq!(vector.element_value(1), "d");
+assert_eq!(vector.last_element_value(0), "d"); // the last entry stored
+```
+
+The significant pair asks the other kind of question: it measures *positions*, and takes a signed `i64`. The first stored entry stands in for the first significant digit, the last one for the last, and the empty positions in between count the way the zeros inside a number count:
+
+```rust
+use sparse_vector::SparseVector;
+
+let mut vector = SparseVector::with_default("");
+vector.set(10, "a");
+vector.set(13, "d");
+
+assert_eq!(vector.left_significant_value(0), "a"); // index 10
+assert_eq!(vector.left_significant_value(2), "");  // index 12, an empty position
+assert_eq!(vector.left_significant_value(3), "d"); // index 13
+```
+
+A negative `n` walks the other way, into the default value. These panic when the vector holds no entry at all, there being no position to measure from, and also when the position would leave the `i64` range, which is checked rather than wrapped.
 
 ### `Element<T>`
 

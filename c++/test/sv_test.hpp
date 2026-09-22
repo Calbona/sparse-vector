@@ -175,4 +175,20 @@ inline int run_all() {
     }                                                                     \
   } while (false)
 
+// A different exception type is deliberately left to escape: run_all() reports it
+// as an unexpected exception, which says more than "did not throw" would.
+#define SV_CHECK_THROWS(expression, exception_type)                     \
+  do {                                                                  \
+    bool sv_threw = false;                                              \
+    try {                                                               \
+      (void)(expression);                                               \
+    } catch (const exception_type&) {                                   \
+      sv_threw = true;                                                  \
+    }                                                                   \
+    if (!sv_threw) {                                                    \
+      SV_FAIL(std::string("SV_CHECK_THROWS(" #expression              \
+                          ") did not throw " #exception_type));         \
+    }                                                                   \
+  } while (false)
+
 #endif  // SV_TEST_HPP

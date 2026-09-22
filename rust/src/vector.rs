@@ -61,6 +61,31 @@ impl<T> SparseVector<T> {
         self.entries.keys().copied().collect()
     }
 
+    /// The index of the entry at 0-based ordinal `n` of [`elements`](Self::elements),
+    /// counting from the left.
+    ///
+    /// The ordinal numbers the entries, not the positions: ordinal `0` is the
+    /// leftmost stored entry however far out its index lies.
+    ///
+    /// # Panics
+    ///
+    /// Panics when fewer than n + 1 entries are stored.
+    pub fn element_index(&self, n: usize) -> i64 {
+        *self.at_ordinal(n, false).0
+    }
+
+    /// The index of the entry at 0-based ordinal `n` of [`elements`](Self::elements),
+    /// counting from the right.
+    ///
+    /// Ordinal `0` is the rightmost stored entry.
+    ///
+    /// # Panics
+    ///
+    /// Panics when fewer than n + 1 entries are stored.
+    pub fn last_element_index(&self, n: usize) -> i64 {
+        *self.at_ordinal(n, true).0
+    }
+
     /// Iterates the explicit entries in ascending index order, borrowing them.
     ///
     /// Reach for this instead of [`elements`](Self::elements) when you do not
@@ -68,6 +93,47 @@ impl<T> SparseVector<T> {
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             inner: self.entries.iter(),
+        }
+    }
+
+    /// The entry at 0-based ordinal `n` from whichever end.
+    ///
+    /// Walks the map rather than going through [`elements`](Self::elements),
+    /// which would copy the whole array to read one element of it.
+    fn at_ordinal(&self, n: usize, from_right: bool) -> (&i64, &T) {
+        let entry = if from_right {
+            self.entries.iter().nth_back(n)
+        } else {
+            self.entries.iter().nth(n)
+        };
+        match entry {
+            Some(entry) => entry,
+            None => {
+                let side = if from_right { "right" } else { "left" };
+                panic!(
+                    "SparseVector holds {} entries, so there is no entry {} from the {}",
+                    self.entries.len(),
+                    n,
+                    side
+                )
+            }
+        }
+    }
+
+    /// The outermost stored index, the first one or the last one.
+    ///
+    /// # Panics
+    ///
+    /// Panics when nothing is stored, there being no position to measure from.
+    fn anchor(&self, from_left: bool) -> i64 {
+        let index = if from_left {
+            self.entries.keys().next()
+        } else {
+            self.entries.keys().next_back()
+        };
+        match index {
+            Some(&index) => index,
+            None => panic!("SparseVector holds no entries, so there is nothing to measure from"),
         }
     }
 }
@@ -118,6 +184,93 @@ impl<T: Clone> SparseVector<T> {
     /// The stored values, in ascending index order.
     pub fn values(&self) -> Vec<T> {
         self.entries.values().cloned().collect()
+    }
+
+    /// The element at 0-based ordinal `n` of [`elements`](Self::elements),
+    /// counting from the left.
+    ///
+    /// The ordinal numbers the entries, not the positions: `element(0)` is the
+    /// leftmost stored entry however far out its index lies.
+    ///
+    /// # Panics
+    ///
+    /// Panics when fewer than n + 1 entries are stored.
+    pub fn element(&self, n: usize) -> Element<T> {
+        let (&index, value) = self.at_ordinal(n, false);
+        Element {
+            index,
+            value: value.clone(),
+        }
+    }
+
+    /// The value of the entry at 0-based ordinal `n`, counting from the left.
+    ///
+    /// # Panics
+    ///
+    /// Panics when fewer than n + 1 entries are stored.
+    pub fn element_value(&self, n: usize) -> T {
+        self.at_ordinal(n, false).1.clone()
+    }
+
+    /// The element at 0-based ordinal `n` of [`elements`](Self::elements),
+    /// counting from the right.
+    ///
+    /// `last_element(0)` is the rightmost stored entry.
+    ///
+    /// # Panics
+    ///
+    /// Panics when fewer than n + 1 entries are stored.
+    pub fn last_element(&self, n: usize) -> Element<T> {
+        let (&index, value) = self.at_ordinal(n, true);
+        Element {
+            index,
+            value: value.clone(),
+        }
+    }
+
+    /// The value of the entry at 0-based ordinal `n`, counting from the right.
+    ///
+    /// # Panics
+    ///
+    /// Panics when fewer than n + 1 entries are stored.
+    pub fn last_element_value(&self, n: usize) -> T {
+        self.at_ordinal(n, true).1.clone()
+    }
+
+    /// Treating the first stored entry as the first significant digit, the value
+    /// `n` positions to its right.
+    ///
+    /// Positions without an entry in between count, the way the zeros inside a
+    /// number count towards its sign. `n` may be negative, which walks left of
+    /// that first entry instead; the result is then the default value.
+    ///
+    /// # Panics
+    ///
+    /// Panics when nothing is stored, so there is no position to measure from, or
+    /// when the position leaves the `i64` range.
+    pub fn left_significant_value(&self, n: i64) -> T {
+        let anchor = self.anchor(true);
+        let index = anchor
+            .checked_add(n)
+            .unwrap_or_else(|| panic!("SparseVector position {anchor} + {n} overflows i64"));
+        self.get(index)
+    }
+
+    /// Treating the last stored entry as the first significant digit counting
+    /// from the right, the value `n` positions to its left.
+    ///
+    /// `n` may be negative, which walks right of that last entry instead.
+    ///
+    /// # Panics
+    ///
+    /// Panics when nothing is stored, so there is no position to measure from, or
+    /// when the position leaves the `i64` range.
+    pub fn right_significant_value(&self, n: i64) -> T {
+        let anchor = self.anchor(false);
+        let index = anchor
+            .checked_sub(n)
+            .unwrap_or_else(|| panic!("SparseVector position {anchor} - {n} overflows i64"));
+        self.get(index)
     }
 }
 

@@ -88,6 +88,14 @@ class SV_vector;
 | `elements() const -> std::vector<SV_element<T>>` | The stored entries, in ascending index order |
 | `keys() const -> std::vector<index_type>` | The stored indices, in ascending order |
 | `values() const -> std::vector<T>` | The stored values, in ascending index order |
+| `element(std::size_t) const -> SV_element<T>` | The (n+1)-th stored entry from the left, i.e. `elements()[n]` |
+| `element_index(std::size_t) const -> index_type` | The index that entry sits at |
+| `element_value(std::size_t) const -> T` | Its value |
+| `last_element(std::size_t) const -> SV_element<T>` | The same counting from the right, so `last_element(0)` is the rightmost entry |
+| `last_element_index(std::size_t) const -> index_type` | The index that entry sits at |
+| `last_element_value(std::size_t) const -> T` | Its value |
+| `left_significant_value(index_type) const -> T` | The value `n` positions right of the first stored entry |
+| `right_significant_value(index_type) const -> T` | The value `n` positions left of the last stored entry |
 | `begin()` / `end() const` | Borrows the stored entries in ascending index order |
 | `from_elements(first, last[, default])` | Builds from any input iterator over `SV_element<T>` |
 | `from(const std::vector<SV_element<T>>&[, default])` | The same, for a vector of elements |
@@ -99,6 +107,28 @@ for (const auto& [index, value] : vector) {
   // ascending index order
 }
 ```
+
+The `n` the ordinal methods take numbers the *entries*, not the positions: `element(0)` is the leftmost stored entry, however far out its index lies. It is a `std::size_t`, so an ordinal cannot be negative and a negative literal does not compile; an ordinal past the end throws `std::out_of_range`. These walk the map rather than going through `elements()`, so reading one entry does not copy the whole array
+
+```cpp
+sv::SV_vector<std::string> vector(std::string(""));
+vector.set(10, "a");
+vector.set(13, "d");
+
+vector.element(0);             // {index: 10, value: "a"} — the first entry stored
+vector.element_value(1);       // "d"
+vector.last_element_value(0);  // "d" — the last entry stored
+```
+
+The significant pair asks the other kind of question: it measures *positions*, and takes a signed `index_type`. The first stored entry stands in for the first significant digit, the last one for the last, and the empty positions in between count the way the zeros inside a number count
+
+```cpp
+vector.left_significant_value(0);   // "a"  — index 10
+vector.left_significant_value(2);   // ""   — index 12, an empty position
+vector.left_significant_value(3);   // "d"  — index 13
+```
+
+A negative `n` walks the other way, into the default value. These throw `std::out_of_range` when the vector holds no entry at all, there being no position to measure from, and also when the position would leave the `index_type` range, which signed overflow would otherwise make undefined
 
 The copy constructor **is** `clone()` — there is no member function of that name, because a C++ value copy is already an independent one, default value included:
 

@@ -18,9 +18,9 @@
 
 | 言語 | パッケージ | バージョン | ディレクトリ | 状態 |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](../typescript/) | リリース済み |
-| C++ | `sparse-vector` | 1.0.0 | [`c++/`](../c++/) | リリース済み |
-| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](../rust/) | リリース済み |
+| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](../typescript/) | リリース済み |
+| C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | リリース済み |
+| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | リリース済み |
 
 三つのパッケージはそれぞれ独立に採番されているため、バージョン番号は異なる。現時点で三者のセマンティクスは同一である
 

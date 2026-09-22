@@ -18,9 +18,9 @@
 
 | 語言 | 套件 | 版本 | 目錄 | 狀態 |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](../typescript/) | 已發布 |
-| C++ | `sparse-vector` | 1.0.0 | [`c++/`](../c++/) | 已發布 |
-| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](../rust/) | 已發布 |
+| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](../typescript/) | 已發布 |
+| C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | 已發布 |
+| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | 已發布 |
 
 三個套件各自獨立編號，所以版本號不同。目前三者實作的語意是一致的
 

@@ -2,7 +2,11 @@
 #define SV_VECTOR_HPP
 
 #include <cstddef>
+#include <iterator>
+#include <limits>
 #include <map>
+#include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -143,6 +147,74 @@ class SV_vector {
     return out;
   }
 
+  /// The element at 0-based ordinal `n` of elements(), counting from the left.
+  ///
+  /// The ordinal numbers the entries, not the positions: `element(0)` is the
+  /// leftmost stored entry however far out its index lies.
+  ///
+  /// @throws std::out_of_range when fewer than n + 1 entries are stored.
+  [[nodiscard]] element_type element(std::size_t n) const {
+    const auto entry = _at_ordinal(n, false);
+    return element_type{entry->first, entry->second};
+  }
+
+  /// @copydoc element(std::size_t) const
+  ///
+  /// @returns the index the entry sits at, not its ordinal.
+  [[nodiscard]] index_type element_index(std::size_t n) const {
+    return _at_ordinal(n, false)->first;
+  }
+
+  /// @copydoc element(std::size_t) const
+  [[nodiscard]] T element_value(std::size_t n) const { return _at_ordinal(n, false)->second; }
+
+  /// The element at 0-based ordinal `n` of elements(), counting from the right.
+  ///
+  /// `last_element(0)` is the rightmost stored entry.
+  ///
+  /// @throws std::out_of_range when fewer than n + 1 entries are stored.
+  [[nodiscard]] element_type last_element(std::size_t n) const {
+    const auto entry = _at_ordinal(n, true);
+    return element_type{entry->first, entry->second};
+  }
+
+  /// @copydoc last_element(std::size_t) const
+  ///
+  /// @returns the index the entry sits at, not its ordinal.
+  [[nodiscard]] index_type last_element_index(std::size_t n) const {
+    return _at_ordinal(n, true)->first;
+  }
+
+  /// @copydoc last_element(std::size_t) const
+  [[nodiscard]] T last_element_value(std::size_t n) const { return _at_ordinal(n, true)->second; }
+
+  /// Treating the first stored entry as the first significant digit, the value
+  /// `n` positions to its right.
+  ///
+  /// Positions without an entry in between count, the way the zeros inside a
+  /// number count towards its sign. `n` may be negative, which walks left of that
+  /// first entry instead; the result is then the default value.
+  ///
+  /// @throws std::out_of_range when nothing is stored, so there is no position to
+  ///         measure from, or when the position leaves the index_type range.
+  [[nodiscard]] T left_significant_value(index_type n) const {
+    if (_entries.empty()) {
+      throw std::out_of_range("SV_vector holds no entries, so there is nothing to measure from");
+    }
+    return get(_checked_add(_entries.begin()->first, n));
+  }
+
+  /// Treating the last stored entry as the first significant digit counting from
+  /// the right, the value `n` positions to its left.
+  ///
+  /// @copydoc left_significant_value(index_type) const
+  [[nodiscard]] T right_significant_value(index_type n) const {
+    if (_entries.empty()) {
+      throw std::out_of_range("SV_vector holds no entries, so there is nothing to measure from");
+    }
+    return get(_checked_subtract(std::prev(_entries.end())->first, n));
+  }
+
   /// Iterates the explicit entries in ascending index order, borrowing them.
   ///
   /// The pair is the map's own, so `for (const auto& [index, value] : vector)`
@@ -191,6 +263,46 @@ class SV_vector {
   // guarantee ascending index order, which this container gives for free.
   container_type _entries;
   T _default{};
+
+  /// The entry at 0-based ordinal `n` from whichever end.
+  ///
+  /// Walks the map rather than going through elements(), which would copy the
+  /// whole array to read one element of it.
+  typename container_type::const_iterator _at_ordinal(std::size_t n, bool from_right) const {
+    if (n >= _entries.size()) {
+      throw std::out_of_range("SV_vector holds " + std::to_string(_entries.size()) +
+                              " entries, so there is no entry " + std::to_string(n) +
+                              (from_right ? " from the right" : " from the left"));
+    }
+    const auto distance = static_cast<typename container_type::difference_type>(n);
+    return from_right ? std::prev(_entries.end(), distance + 1)
+                      : std::next(_entries.begin(), distance);
+  }
+
+  /// `anchor + n`, refusing to wrap.
+  ///
+  /// Signed overflow is undefined behaviour, so a shift that would leave the
+  /// index_type range is reported rather than left to do whatever it does.
+  static index_type _checked_add(index_type anchor, index_type n) {
+    if (n > 0 && anchor > std::numeric_limits<index_type>::max() - n) {
+      throw std::out_of_range("SV_vector position overflows index_type");
+    }
+    if (n < 0 && anchor < std::numeric_limits<index_type>::min() - n) {
+      throw std::out_of_range("SV_vector position overflows index_type");
+    }
+    return anchor + n;
+  }
+
+  /// `anchor - n`, refusing to wrap.
+  static index_type _checked_subtract(index_type anchor, index_type n) {
+    if (n < 0 && anchor > std::numeric_limits<index_type>::max() + n) {
+      throw std::out_of_range("SV_vector position overflows index_type");
+    }
+    if (n > 0 && anchor < std::numeric_limits<index_type>::min() + n) {
+      throw std::out_of_range("SV_vector position overflows index_type");
+    }
+    return anchor - n;
+  }
 
   /// Drops every entry equal to the current default.
   void _prune() {

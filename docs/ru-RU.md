@@ -18,9 +18,9 @@
 
 | Язык | Пакет | Версия | Каталог | Статус |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.0.2 | [`typescript/`](../typescript/) | выпущено |
-| C++ | `sparse-vector` | 1.0.0 | [`c++/`](../c++/) | выпущено |
-| Rust | `sparse-vector-rs` | 1.0.0 | [`rust/`](../rust/) | выпущено |
+| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](../typescript/) | выпущено |
+| C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | выпущено |
+| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | выпущено |
 
 Каждый пакет нумеруется независимо, поэтому номера различаются. Сейчас все три реализуют одну и ту же семантику
 

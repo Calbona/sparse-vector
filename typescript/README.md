@@ -66,6 +66,14 @@ Creates a vector
 | `elements(): SV_element<T>[]` | The explicit entries, in ascending index order |
 | `keys(): number[]` | The stored indices, ascending |
 | `values(): T[]` | The stored values, in ascending index order |
+| `element(n): SV_element<T>` | The (n+1)-th explicit entry from the left, i.e. `elements()[n]` |
+| `elementIndex(n): number` | The index that entry sits at |
+| `elementValue(n): T` | Its value |
+| `lastElement(n): SV_element<T>` | The same counting from the right, so `lastElement(0)` is the rightmost entry |
+| `lastElementIndex(n): number` | The index that entry sits at |
+| `lastElementValue(n): T` | Its value |
+| `leftSignificantValue(n): T` | The value `n` positions right of the first explicit entry |
+| `rightSignificantValue(n): T` | The value `n` positions left of the last explicit entry |
 | `clone(): SV_vector<T>` | An independent copy |
 | `[Symbol.iterator]()` | Iterates the explicit entries in ascending index order |
 | `toJSON(): SV_element<T>[]` | Same as `elements()`, so `JSON.stringify` works directly |
@@ -73,6 +81,28 @@ Creates a vector
 `index` must be an integer — positive or negative; a non-integer throws `TypeError`
 
 Reading a position outside the data range does not throw, it returns the default value: that is the whole point of this type
+
+The `n` the ordinal methods take is 0-based and numbers the *entries*, not the positions: `element(0)` is the leftmost stored entry, however far out its index lies. An ordinal past the end, or a negative one, throws `RangeError`; a non-integer throws `TypeError`. These reuse `elements()`, so they read a copy of one entry rather than of the whole array
+
+```ts
+const vector = new SV_vector<string>('');
+vector.set(10, 'a');
+vector.set(13, 'd');
+
+vector.element(0);            // { index: 10, value: 'a' } — the first entry stored
+vector.elementValue(1);       // 'd'
+vector.lastElementValue(0);   // 'd' — the last entry stored
+```
+
+The significant pair is the other kind of question: it measures *positions*. The first stored entry stands in for the first significant digit, the last one for the last, and the empty positions in between count the way the zeros inside a number count
+
+```ts
+vector.leftSignificantValue(0);   // 'a'  — index 10
+vector.leftSignificantValue(2);   // ''   — index 12, an empty position
+vector.leftSignificantValue(3);   // 'd'  — index 13
+```
+
+Both take a signed offset, so a negative `n` walks the other way, into the default value. They throw `RangeError` only when the vector holds no entry at all, there being no position to measure from
 
 ### `SV_vector.from(elements, defaultValue?)`
 
