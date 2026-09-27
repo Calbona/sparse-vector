@@ -6,18 +6,18 @@ use sparse_vector::{Element, SparseVector};
 fn never_stores_a_value_equal_to_the_default() {
     let mut vector = SparseVector::new();
     vector.set(1, 0.0);
-    assert_eq!(vector.len(), 0);
-    assert!(!vector.contains_key(1));
+    assert_eq!(vector.get_element_amount(), 0);
+    assert!(vector.elements().is_empty());
 }
 
 #[test]
 fn prunes_an_entry_that_becomes_the_default() {
     let mut vector = SparseVector::new();
     vector.set(1, 5.0);
-    assert_eq!(vector.len(), 1);
+    assert_eq!(vector.get_element_amount(), 1);
 
     vector.set(1, 0.0);
-    assert_eq!(vector.len(), 0);
+    assert_eq!(vector.get_element_amount(), 0);
     assert_eq!(vector.get(1), 0.0);
 }
 
@@ -30,12 +30,12 @@ fn prunes_on_a_change_of_default_and_forgets_pruned_positions() {
         vector.elements(),
         [
             Element {
-                index: 1,
-                value: None
-            },
-            Element {
                 index: 2,
                 value: Some(7)
+            },
+            Element {
+                index: 1,
+                value: None
             },
         ]
     );
@@ -51,7 +51,7 @@ fn prunes_on_a_change_of_default_and_forgets_pruned_positions() {
     );
     // The old default is not remembered: position 3 reads back as None.
     assert_eq!(vector.get(3), None);
-    assert_eq!(vector.len(), 1);
+    assert_eq!(vector.get_element_amount(), 1);
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn keeps_entries_that_were_pruned_earlier_gone() {
     let mut vector: SparseVector<Option<i32>> = SparseVector::with_default(Some(0));
     vector.set(1, Some(0));
     vector.set(2, Some(7));
-    assert!(!vector.contains_key(1));
+    assert_eq!(vector.indexes(), [2]);
 
     vector.set_default_value(None);
     vector.set_default_value(Some(0));
@@ -82,7 +82,7 @@ fn compares_exactly() {
     vector.set(1, "00");
     vector.set(2, "0 ");
     vector.set(3, "");
-    assert_eq!(vector.len(), 3);
+    assert_eq!(vector.get_element_amount(), 3);
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn documents_the_nan_caveat() {
     let mut vector = SparseVector::with_default(f64::NAN);
     vector.set(1, f64::NAN);
     // NaN != NaN, so comparison cannot recognise it as the default.
-    assert_eq!(vector.len(), 1);
+    assert_eq!(vector.get_element_amount(), 1);
 }
 
 // No TypeScript counterpart, and a real divergence: `PartialEq` on a user type
@@ -105,10 +105,10 @@ fn prunes_by_value_not_by_identity() {
 
     let mut vector: SparseVector<Widget> = SparseVector::with_default(Widget { a: 0 });
     vector.set(1, Widget { a: 0 }); // equal to the default, but a distinct instance
-    assert_eq!(vector.len(), 0);
+    assert_eq!(vector.get_element_amount(), 0);
 
     vector.set(2, Widget { a: 1 });
-    assert_eq!(vector.len(), 1);
+    assert_eq!(vector.get_element_amount(), 1);
 }
 
 #[test]
@@ -116,5 +116,5 @@ fn prunes_a_negative_zero() {
     // -0.0 == 0.0, and TypeScript's -0 === 0 does the same.
     let mut vector = SparseVector::new();
     vector.set(1, -0.0);
-    assert_eq!(vector.len(), 0);
+    assert_eq!(vector.get_element_amount(), 0);
 }

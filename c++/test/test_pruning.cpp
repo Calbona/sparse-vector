@@ -23,17 +23,17 @@ struct Widget {
 SV_TEST(never_stores_a_value_equal_to_the_default) {
   sv::SV_vector<> vector;
   vector.set(1, 0.0);
-  SV_CHECK_EQ(vector.size(), 0u);
-  SV_CHECK_EQ(vector.has(1), false);
+  SV_CHECK_EQ(vector.get_element_amount(), 0u);
+  SV_CHECK(vector.elements().empty());
 }
 
 SV_TEST(prunes_an_entry_that_becomes_the_default) {
   sv::SV_vector<> vector(0.0);
   vector.set(1, 5.0);
-  SV_CHECK_EQ(vector.size(), 1u);
+  SV_CHECK_EQ(vector.get_element_amount(), 1u);
 
   vector.set(1, 0.0);
-  SV_CHECK_EQ(vector.size(), 0u);
+  SV_CHECK_EQ(vector.get_element_amount(), 0u);
   SV_CHECK_EQ(vector.get(1), 0.0);
 }
 
@@ -45,8 +45,8 @@ SV_TEST(prunes_on_a_change_of_default_and_forgets_pruned_positions) {
   vector.set(2, Value{7});
 
   const std::vector<sv::SV_element<Value>> before{
-      sv::SV_element<Value>{1, Value{}},
       sv::SV_element<Value>{2, Value{7}},
+      sv::SV_element<Value>{1, Value{}},
   };
   SV_CHECK_EQ(vector.elements(), before);
 
@@ -57,7 +57,7 @@ SV_TEST(prunes_on_a_change_of_default_and_forgets_pruned_positions) {
   };
   SV_CHECK_EQ(vector.elements(), after);
   SV_CHECK_EQ(vector.get(3), Value{});
-  SV_CHECK_EQ(vector.size(), 1u);
+  SV_CHECK_EQ(vector.get_element_amount(), 1u);
 }
 
 SV_TEST(keeps_entries_that_were_pruned_earlier_gone) {
@@ -66,7 +66,7 @@ SV_TEST(keeps_entries_that_were_pruned_earlier_gone) {
   sv::SV_vector<Value> vector{Value{0}};
   vector.set(1, Value{0});
   vector.set(2, Value{7});
-  SV_CHECK_EQ(vector.has(1), false);
+  SV_CHECK_EQ(vector.indexes(), std::vector<sv::index_type>{2});
 
   vector.set_default_value(Value{});
   vector.set_default_value(Value{0});
@@ -86,7 +86,7 @@ SV_TEST(compares_exactly) {
   vector.set(1, "00");
   vector.set(2, "0 ");
   vector.set(3, "");
-  SV_CHECK_EQ(vector.size(), 3u);
+  SV_CHECK_EQ(vector.get_element_amount(), 3u);
 }
 
 SV_TEST(documents_the_nan_caveat) {
@@ -94,7 +94,7 @@ SV_TEST(documents_the_nan_caveat) {
   // as the TypeScript implementation.
   sv::SV_vector<> vector(std::numeric_limits<double>::quiet_NaN());
   vector.set(1, std::numeric_limits<double>::quiet_NaN());
-  SV_CHECK_EQ(vector.size(), 1u);
+  SV_CHECK_EQ(vector.get_element_amount(), 1u);
 }
 
 // No TypeScript counterpart, and a real divergence: `===` there compares object
@@ -103,10 +103,10 @@ SV_TEST(documents_the_nan_caveat) {
 SV_TEST(prunes_by_value_not_by_identity) {
   sv::SV_vector<Widget> vector{Widget{0}};
   vector.set(1, Widget{0});
-  SV_CHECK_EQ(vector.size(), 0u);
+  SV_CHECK_EQ(vector.get_element_amount(), 0u);
 
   vector.set(2, Widget{1});
-  SV_CHECK_EQ(vector.size(), 1u);
+  SV_CHECK_EQ(vector.get_element_amount(), 1u);
 }
 
 SV_TEST(prunes_a_negative_zero) {
@@ -114,5 +114,5 @@ SV_TEST(prunes_a_negative_zero) {
   // consistency check rather than a divergence.
   sv::SV_vector<> vector;
   vector.set(1, -0.0);
-  SV_CHECK_EQ(vector.size(), 0u);
+  SV_CHECK_EQ(vector.get_element_amount(), 0u);
 }

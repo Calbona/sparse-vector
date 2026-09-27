@@ -9,7 +9,7 @@
 
 SV_TEST(defaults_to_the_number_0_when_omitted) {
   const sv::SV_vector<> vector;
-  SV_CHECK_EQ(vector.default_value(), 0.0);
+  SV_CHECK_EQ(vector.get_default_value(), 0.0);
   SV_CHECK_EQ(vector.get(5), 0.0);
 }
 
@@ -25,7 +25,7 @@ SV_TEST(accepts_an_explicit_default) {
 // honest spelling of "the default is explicitly nothing".
 SV_TEST(honours_an_explicit_empty_optional_default) {
   const sv::SV_vector<std::optional<int>> vector{std::optional<int>{}};
-  SV_CHECK_EQ(vector.default_value(), std::nullopt);
+  SV_CHECK_EQ(vector.get_default_value(), std::nullopt);
   SV_CHECK_EQ(vector.get(0), std::nullopt);
 }
 
@@ -41,6 +41,6 @@ SV_TEST(is_replaceable_after_construction) {
 
 SV_TEST(generalises_to_any_defaultable_type) {
   const sv::SV_vector<std::string> vector;
-  SV_CHECK_EQ(vector.default_value(), std::string(""));
+  SV_CHECK_EQ(vector.get_default_value(), std::string(""));
   SV_CHECK_EQ(vector.get(5), std::string(""));
 }

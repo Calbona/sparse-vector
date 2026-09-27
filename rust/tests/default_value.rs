@@ -5,7 +5,7 @@ use sparse_vector::SparseVector;
 #[test]
 fn defaults_to_the_number_0_when_omitted() {
     let vector = SparseVector::new();
-    assert_eq!(vector.default_value(), &0.0);
+    assert_eq!(vector.get_default_value(), &0.0);
     assert_eq!(vector.get(5), 0.0);
 }
 
@@ -22,7 +22,7 @@ fn accepts_an_explicit_default() {
 #[test]
 fn honours_an_explicit_optional_default() {
     let vector: SparseVector<Option<i32>> = SparseVector::with_default(None);
-    assert_eq!(vector.default_value(), &None);
+    assert_eq!(vector.get_default_value(), &None);
     assert_eq!(vector.get(0), None);
 }
 
@@ -42,6 +42,6 @@ fn is_replaceable_after_construction() {
 #[test]
 fn generalises_to_any_defaultable_type() {
     let vector: SparseVector<String> = SparseVector::default();
-    assert_eq!(vector.default_value(), "");
+    assert_eq!(vector.get_default_value(), "");
     assert_eq!(vector.get(5), "");
 }

@@ -9,29 +9,29 @@ describe('writing', () => {
     const vector = new SV_vector<string>('');
     vector.set(1, 'a');
     assert.equal(vector.get(1), 'a');
-    assert.equal(vector.size, 1);
+    assert.equal(vector.getElementAmount, 1);
 
     vector.set(1, 'b');
     assert.equal(vector.get(1), 'b');
-    assert.equal(vector.size, 1);
+    assert.equal(vector.getElementAmount, 1);
   });
 
-  it('deletes to the default value', () => {
+  it('resets one entry to the default value', () => {
     const vector = new SV_vector<string>('');
     vector.set(1, 'a');
-    assert.equal(vector.delete(1), true);
+    assert.equal(vector.resetValue(1), true);
     assert.equal(vector.get(1), '');
-    assert.equal(vector.size, 0);
-    assert.equal(vector.delete(1), false);
+    assert.equal(vector.getElementAmount, 0);
+    assert.equal(vector.resetValue(1), false);
   });
 
-  it('clears every entry but keeps the default', () => {
+  it('resets every entry but keeps the default', () => {
     const vector = new SV_vector<string>('gone');
     vector.set(1, 'a');
     vector.set(-2, 'b');
-    vector.clear();
-    assert.equal(vector.size, 0);
-    assert.equal(vector.defaultValue, 'gone');
+    vector.resetVector();
+    assert.equal(vector.getElementAmount, 0);
+    assert.equal(vector.getDefaultValue, 'gone');
     assert.equal(vector.get(1), 'gone');
   });
 });

@@ -1,38 +1,40 @@
-[English](../README.md) · [简体中文](zh-CN.md) · [繁體中文](zh-TW.md) · [日本語](ja-JP.md) · **Español** · [Français](fr-FR.md) · [Русский](ru-RU.md)
+[English](../README.md) · [Deutsch](de-DE.md) · **Español** · [Français](fr-FR.md) · [Italiano](it-IT.md) · [日本語](ja-JP.md) · [한국어](ko-KR.md) · [Русский](ru-RU.md) · [Tiếng Việt](vi-VN.md) · [简体中文](zh-CN.md) · [繁體中文](zh-TW.md)
 
 # sparse-vector
 
-Un vector disperso: una correspondencia de índices enteros a valores arbitrarios que solo almacena las posiciones distintas de un valor por defecto
-
 ## La idea
 
-Los índices pueden ser negativos y no hace falta que sean contiguos
+- **Un vector disperso no es un vector**
 
-Así, un vector con solo tres entradas ocupa solo tres entradas — tanto si esos tres índices son `0, 1, 2` como si son `-10^9, 0, 10^9`
+	Su «índice» no empieza en cero ni recorre de izquierda a derecha: se parece más a como se escribe un número a mano, donde el índice hace de peso posicional, de modo que abarca desde el infinito positivo hasta el negativo. Por supuesto, ningún lenguaje tiene infinito de verdad: en TypeScript es `number`, en C++ `int64_t` y en Rust `i64`.
 
-Esta biblioteca deliberadamente **no** es un vector en el sentido matemático. No incorpora ninguna aritmética: es una estructura de datos, y nada más
+	Y como no es un vector matemático, no incorpora aritmética alguna. En ese sentido también es un diccionario, y además cada posición admite datos de cualquier tipo.
 
-## Implementaciones
+- **Cómo está hecho un vector disperso**
 
-El mismo tipo se ofrece en tres lenguajes. Todos comparten las reglas de más abajo; lo único que cambia es cómo se escribe
+	Solo se almacenan las posiciones distintas del valor por defecto.
 
-| Lenguaje | Paquete | Versión | Directorio | Estado |
+	Así, con varios objetos llamados «entradas» —un índice junto con un valor distinto del valor por defecto— formamos una lista, le añadimos el valor por defecto y ya está: el vector disperso queda listo. Sea cual sea el índice, si solo hay k entradas, la memoria es O(k).
+
+## Bibliotecas
+
+| Lenguaje | Paquete | Versión | Estado | README |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](../typescript/) | publicado |
-| C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | publicado |
-| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | publicado |
+| TypeScript | `@calbona/sparse-vector` | 2.0.0 | publicado | [`typescript/`](../typescript/) |
+| C++ | `sparse-vector` | 2.0.0 | publicado | [`c++/`](../c++/) |
+| Rust | `sparse-vector-rs` | 2.0.0 | publicado | [`rust/`](../rust/) |
 
-Cada paquete se numera de forma independiente; el repositorio en su conjunto está en la versión 1.0.0. Ahora mismo los tres implementan la misma semántica
-
-## Instalación
-
-**TypeScript**
+### TypeScript
 
 ```sh
 npm install @calbona/sparse-vector
 ```
 
-**C++** — Todavía sin publicar en vcpkg ni Conan. Solo dos cabeceras y nada que enlazar, así que basta con apuntar CMake al repositorio:
+### C++
+
+*Todavía sin publicar en vcpkg ni Conan*
+
+Basta con apuntar CMake al repositorio
 
 ```cmake
 include(FetchContent)
@@ -47,65 +49,82 @@ FetchContent_MakeAvailable(sparse-vector)
 target_link_libraries(your-target PRIVATE Calbona::sparse-vector)
 ```
 
-Un checkout junto a tu proyecto funciona igual, con `add_subdirectory(path/to/sparse-vector/c++)`. Un prefijo de instalación también exporta un paquete CMake, así que `find_package(sparse-vector)` funciona igualmente
+Un checkout junto a tu proyecto funciona igual, con `add_subdirectory(path/to/sparse-vector/c++)`
+Un prefijo de instalación también exporta un paquete CMake, así que `find_package(sparse-vector)` funciona igualmente
 
-**Rust** — ojo, el crate que se importa es `sparse_vector`, no el nombre del paquete:
+### Rust
 
 ```sh
 cargo add sparse-vector-rs
 ```
 
-El directorio de cada implementación tiene su propio README con el uso y la referencia de la API de ese lenguaje. Esta página define la semántica que comparten, para no tener que repetirla tres veces
+## Detalles de la semántica
 
-## Semántica común a todas las implementaciones
+### El valor por defecto de las posiciones vacías
 
-### El valor por defecto
+- Al crear el vector se indica un valor por defecto
 
-Un vector se crea con un valor por defecto: el valor que se informa para toda posición que no tenga una entrada explícita. Si no se indica otro, es el número `0`
+- Ese valor por defecto se puede sustituir después
 
-El valor por defecto se puede sustituir después. Al sustituirlo se descartan de inmediato todas las entradas que resulten iguales al nuevo valor por defecto
-
-Como toda posición tiene un valor definido, la lectura es total. Cualquier entero —almacenado o no, dentro del rango o muy fuera de él— devuelve un valor en lugar de lanzar un error
+- Toda posición tiene un valor definido, así que leer siempre tiene respuesta: cualquier entero devuelve un valor
 
 ### Una entrada igual al valor por defecto nunca se conserva
 
-Escribir el valor por defecto en una posición equivale a eliminar lo que hubiera ahí. Esto es lo que mantiene dispersa la estructura: la memoria es O(k) respecto al número de entradas que realmente difieren del valor por defecto, por muy separados que estén los índices o por muy negativos que sean
+- Escribir el valor por defecto en una posición equivale a borrar lo que hubiera ahí
 
-### El descarte usa la igualdad propia de cada lenguaje
+- Al sustituir el valor por defecto se descartan de inmediato las entradas iguales a él
 
-Una entrada se descarta cuando compara igual al nuevo valor por defecto, usando la igualdad corriente del lenguaje: `===` en TypeScript, `operator==` en C++, `PartialEq` en Rust
+- Este principio es lo que mantiene dispersa la estructura
 
-Para números y cadenas los tres coinciden exactamente, incluidos los casos incómodos:
+### La igualdad
 
-- `-0.0` es igual a `0.0`, así que un `-0.0` almacenado se descarta cuando el valor por defecto es `0.0`
-- `NaN` nunca es igual a sí mismo, así que un `NaN` almacenado se conserva aunque el propio valor por defecto sea `NaN`
+- Que una entrada sea igual al valor por defecto se decide según la práctica habitual de cada lenguaje: `===` en TypeScript, `operator==` en C++, `PartialEq` en Rust
 
-En TypeScript, `0`, `'0'`, `false` y `null` son cuatro valores de cuatro tipos, y solo una coincidencia exacta descarta una entrada. Un vector con tipos estáticos solo puede contener un único `T`, así que ese conjunto concreto no puede darse en C++ ni en Rust; pero la regla que ilustra —que la igualdad es exacta y no coercitiva— vale en los tres
+- Los casos incómodos:
+	- `-0.0` es igual a `0.0`
+	- `NaN` no es igual a sí mismo
+	- `0`, `'0'`, `false` y `null` son cuatro valores de cuatro tipos
+	- `===` compara referencias de objetos, mientras que `operator==` y `PartialEq` comparan la estructura: dos objetos distintos con el mismo contenido son un valor en TypeScript y dos en C++ y Rust, así que el primero los conserva y los otros dos los descartan
 
-Con los objetos sí que se separan de verdad, y este es el único punto donde la *identidad* de un valor se hace visible. El `===` de TypeScript compara referencias a objetos; `operator==` y `PartialEq` suelen ser estructurales. Dos objetos distintos con el mismo contenido son un valor en TypeScript y dos en C++ y Rust, de modo que una entrada que contenga un objeto igual pero distinto la conserva el primero y la descartan los otros dos. Cuando lo que quieres es la identidad, incorpórala a la igualdad del propio tipo: un tipo puntero lo consigue sin más, ya que el `operator==` de `std::shared_ptr` compara punteros, y un `Rc<T>` puede envolverse en un newtype que compare con `Rc::ptr_eq`. Los README de C++ y de Rust dan cada uno esa receta
+- Cuando haga falta identidad, incorpórala a la igualdad del propio tipo; un tipo puntero te la da directamente: el `operator==` de `std::shared_ptr` compara punteros, y un `Rc<T>` puede envolverse en un newtype que compare con `Rc::ptr_eq`. Los README de C++ y de Rust lo detallan
 
-### Serialización
+## API
 
-Una entrada es un objeto plano con exactamente dos claves:
+| Para qué | TypeScript | C++ | Rust |
+| --- | --- | --- | --- |
+| Construcción de un vector disperso (valor por defecto omitido) | `new SV_vector()` | `SV_vector()` | `SparseVector::new()` (solo `f64`) / `SparseVector::default()` |
+| Construcción de un vector disperso | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::with_default(default)` |
+| Obtener el valor por defecto | `getDefaultValue` | `get_default_value()` | `get_default_value()` |
+| Cambiar el valor por defecto | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` |
+| Obtener el número de entradas | `getElementAmount` | `get_element_amount()` | `get_element_amount()` |
+| Obtener la dimensión significativa | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` |
+| Obtener la dimensión positiva | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` |
+| Obtener la dimensión negativa | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` |
+| Obtener el valor en un índice | `get(index)` | `get(index)` | `get(index)` |
+| Escribir el valor en un índice | `set(index, value)` | `set(index, value)` | `set(index, value)` |
+| Restablecer el valor en un índice | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` |
+| Restablecer todo el vector | `resetVector()` | `reset_vector()` | `reset_vector()` |
+| Obtener todas las entradas, índice descendente | `elements()` | `elements()` | `elements()` |
+| Obtener todas las entradas, índice ascendente | `invertedElements()` | `inverted_elements()` | `inverted_elements()` |
+| Obtener todos los índices no vacíos, descendente | `indexes()` | `indexes()` | `indexes()` |
+| Obtener todos los índices no vacíos, ascendente | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` |
+| Obtener todos los valores no vacíos, descendente | `values()` | `values()` | `values()` |
+| Obtener todos los valores no vacíos, ascendente | `invertedValues()` | `inverted_values()` | `inverted_values()` |
+| Obtener la (n+1)-ésima entrada desde la izquierda | `element(n)` | `element(n)` | `element(n)` |
+| El índice de esa entrada | `elementIndex(n)` | `element_index(n)` | `element_index(n)` |
+| El valor de esa entrada | `elementValue(n)` | `element_value(n)` | `element_value(n)` |
+| Obtener la (n+1)-ésima entrada desde la derecha | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` |
+| El índice de esa entrada | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` |
+| El valor de esa entrada | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` |
+| Obtener el (n+1)-ésimo dígito significativo por la izquierda | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` |
+| Obtener el (n+1)-ésimo dígito significativo por la derecha | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` |
+| Iteración | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` |
+| Copia | `clone()` | construcción por copia | `clone()` |
+| Construcción en bloque | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` |
 
-| Clave | Tipo | Significado |
-| --- | --- | --- |
-| `index` | entero | la posición, negativa o no |
-| `value` | cualquier cosa | el valor almacenado ahí |
+*En Rust, obtener el valor y enumerar exige `T: Clone`, y escribir, restablecer o cambiar el valor por defecto exige `T: PartialEq`; en C++, de forma análoga, hace falta que el tipo sea copiable y disponga de `operator==`*
 
-Un vector se serializa únicamente a sus entradas, en orden ascendente de índice. El valor por defecto no forma parte de esta estructura, así que al ir y volver hay que llevarlo aparte
-
-## TypeScript
-
-Publicado como `@calbona/sparse-vector`. Uso y referencia de la API en [`typescript/README.md`](../typescript/README.md)
-
-## C++
-
-Implementación de C++17 en solo cabeceras que se toma del repositorio; todavía no está en vcpkg ni en Conan. Uso y referencia de la API en [`c++/README.md`](../c++/README.md)
-
-## Rust
-
-Publicado como `sparse-vector-rs`. Uso y referencia de la API en [`rust/README.md`](../rust/README.md)
+*Fuera de rango, o al medir un dígito significativo en un vector vacío, TypeScript lanza `TypeError` / `RangeError`, C++ lanza `std::out_of_range` y Rust entra en pánico*
 
 ## Licencia
 

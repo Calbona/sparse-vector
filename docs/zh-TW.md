@@ -1,38 +1,40 @@
-[English](../README.md) · [简体中文](zh-CN.md) · **繁體中文** · [日本語](ja-JP.md) · [Español](es-ES.md) · [Français](fr-FR.md) · [Русский](ru-RU.md)
+[English](../README.md) · [Deutsch](de-DE.md) · [Español](es-ES.md) · [Français](fr-FR.md) · [Italiano](it-IT.md) · [日本語](ja-JP.md) · [한국어](ko-KR.md) · [Русский](ru-RU.md) · [Tiếng Việt](vi-VN.md) · [简体中文](zh-CN.md) · **繁體中文**
 
 # sparse-vector
 
-稀疏向量：一個從整數下標到任意值的映射，只儲存與空位預設值不同的位置
+## 概述
 
-## 概念
+- **稀疏向量不是向量**
 
-下標可以為負，也不必連續
+	它的「下標」既不從零開始，也不從左往右遞增，而更像人實際寫數字的方式：下標相當於位權，因此它能從正無窮一路延伸到負無窮。當然，語言裡並沒有無窮大，在 TypeScript 裡它是 `number`，C++ 裡是 `int64_t`，Rust 裡是 `i64`。
 
-所以一個只有三個條目的向量就只佔三個條目 —— 無論這三個下標是 `0, 1, 2` 還是 `-10^9, 0, 10^9`
+	既然不是數學意義上的向量，它自然也不帶任何運算。從這個角度看，它其實也算一種字典，而且每個位權上確實都能存任意型別的資料。
 
-本函式庫刻意**不是**數學意義上的向量。它不帶任何算術；它就是一種資料結構，僅此而已
+- **稀疏向量的實作原理**
 
-## 實作
+	我們只存那些與預設值不同的位置。
 
-同一個型別以三種語言提供。它們共用以下每一條規則 —— 差別只在寫法
+	把若干個叫「元素」的物件——每個是一個索引配上一個不同於預設值的值——排成一個陣列，再加上預設值，噔噔，一個稀疏向量就完成了！無論下標落在哪裡，只要只有 k 個元素，記憶體就是 O(k)。
 
-| 語言 | 套件 | 版本 | 目錄 | 狀態 |
+## 函式庫
+
+| 語言 | 套件 | 最新版本 | 狀態 | README |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](../typescript/) | 已發布 |
-| C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | 已發布 |
-| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | 已發布 |
+| TypeScript | `@calbona/sparse-vector` | 2.0.0 | 已發布 | [`typescript/`](../typescript/) |
+| C++ | `sparse-vector` | 2.0.0 | 已發布 | [`c++/`](../c++/) |
+| Rust | `sparse-vector-rs` | 2.0.0 | 已發布 | [`rust/`](../rust/) |
 
-三個套件各自獨立編號；整個倉庫的版本號是 1.0.0。目前三者實作的語意是一致的
-
-## 安裝
-
-**TypeScript**
+### TypeScript
 
 ```sh
 npm install @calbona/sparse-vector
 ```
 
-**C++** —— 尚未發佈到 vcpkg 或 Conan。只有兩個標頭檔、無需連結，讓 CMake 指向倉庫即可：
+### C++
+
+*尚未發布到 vcpkg 或 Conan*
+
+讓 CMake 指向倉庫即可
 
 ```cmake
 include(FetchContent)
@@ -47,65 +49,82 @@ FetchContent_MakeAvailable(sparse-vector)
 target_link_libraries(your-target PRIVATE Calbona::sparse-vector)
 ```
 
-放在專案旁邊的檢出目錄同樣可行，寫 `add_subdirectory(path/to/sparse-vector/c++)`。安裝到前綴後也會匯出 CMake 套件，因此 `find_package(sparse-vector)` 也可用
+放在專案旁邊的檢出目錄同樣可行，寫 `add_subdirectory(path/to/sparse-vector/c++)`
+安裝到前綴後也會匯出 CMake 套件，因此 `find_package(sparse-vector)` 也可用
 
-**Rust** —— 注意匯入的 crate 名是 `sparse_vector`，不是套件名：
+### Rust
 
 ```sh
 cargo add sparse-vector-rs
 ```
 
-每個實作目錄都各自帶有該語言的用法與 API 參考的說明文件。本頁定義它們共通的語意，因此不必重複寫三次
-
-## 各實作共通的語意
+## 語意詳解
 
 ### 空位預設值
 
-向量建立時帶有一個預設值：所有沒有顯式條目的位置所回報的值。未指定時預設為 number 型別的 `0`
+- 建立稀疏向量時指定一個預設值
 
-預設值之後可以替換。替換時會立即排除所有等於新預設值的條目
+- 預設值之後可以替換
 
-因為每個位置都有定義好的值，所以讀取是全定義的。任何整數 —— 已儲存或未儲存、在範圍內或遠在範圍外 —— 都會回傳一個值，而不是拋錯
+- 每個位權上都有確定的值，因此讀取總有答案：任何整數都會回傳一個值
 
-### 等於空位預設值的條目永遠不會被保留
+### 等於預設值的條目永遠不會被保留
 
-把預設值寫進某個位置，就等同於移除原本在那裡的東西。這正是讓結構保持稀疏的原因：記憶體是 O(k)，k 為真正不同於預設值的條目數，無論下標相隔多遠、負到什麼程度
+- 往某個位權寫入預設值，等同於把那裡原有的東西擦除
 
-### 排除採用各語言自己的相等判斷
+- 替換預設值時會立即剔除那些等於預設值的條目
 
-當某個條目與新的預設值比較為相等時就會被排除，用的是該語言平日的相等 —— TypeScript 用 `===`，C++ 用 `operator==`，Rust 用 `PartialEq`
+- 正是這個原則讓結構保持稀疏
 
-對數字與字串，三者完全一致，包括那些彆扭的情況：
+### 相等的判定
 
-- `-0.0` 等於 `0.0`，所以預設值為 `0.0` 時，存進去的 `-0.0` 會被排除
-- `NaN` 不等於它自己，所以即使預設值本身就是 `NaN`，存進去的 `NaN` 依然會被保留
+- 條目是否等於預設值，依各語言日常的判定：TypeScript 用 `===`，C++ 用 `operator==`，Rust 用 `PartialEq`
 
-TypeScript 的 `0`、`'0'`、`false`、`null` 是四個不同型別的值，只有完全相符才會排除該條目。靜態型別的向量只持有單一的 `T`，所以在 C++ 與 Rust 裡這組值根本不會出現 —— 但它所說明的規則「相等是精確的，不做隱式轉換」在三者中都成立
+- 那些彆扭的情形：
+	- `-0.0` 等於 `0.0`
+	- `NaN` 不等於它自己
+	- `0`、`'0'`、`false`、`null` 是四個不同型別的值
+	- `===` 比較的是物件的參考，而 `operator==` 與 `PartialEq` 比較的是結構，兩個內容相同但彼此獨立的物件，在 TypeScript 裡是一個值，在 C++ 和 Rust 裡是兩個值，所以前者保留、後兩者剔除
 
-對物件而言三者才真正分道揚鑣，而這是值的「同一性」唯一可見的地方。TypeScript 的 `===` 比較的是物件的參考，`operator==` 與 `PartialEq` 通常比較的是結構。兩個內容相同但彼此獨立的物件，在 TypeScript 裡是一個值，在 C++ 與 Rust 裡是兩個值 —— 所以內容相同但彼此獨立的條目會被前者保留、被後兩者排除。需要同一性時，就把它做進型別自身的相等裡 —— 用指標型別可以直接得到：`std::shared_ptr` 的 `operator==` 比較的是指標，`Rc<T>` 則可以用一個以 `Rc::ptr_eq` 比較的 newtype 包起來。C++ 與 Rust 的 README 各自給了這個寫法
+- 需要同一性時，就把它做進型別自身的相等裡，用指標型別可以直接得到：`std::shared_ptr` 的 `operator==` 比較的是指標，`Rc<T>` 則可以用一個以 `Rc::ptr_eq` 比較的 newtype 包起來，具體見 C++ 與 Rust 的 README
 
-### 序列化
+## API
 
-條目是一個恰好含兩個鍵的普通物件：
+| 作用 | TypeScript | C++ | Rust |
+| --- | --- | --- | --- |
+| 建構稀疏向量（預設值缺省） | `new SV_vector()` | `SV_vector()` | `SparseVector::new()`（僅 `f64`）/ `SparseVector::default()` |
+| 建構稀疏向量 | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::with_default(default)` |
+| 取得預設值 | `getDefaultValue` | `get_default_value()` | `get_default_value()` |
+| 修改預設值 | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` |
+| 取得條目數 | `getElementAmount` | `get_element_amount()` | `get_element_amount()` |
+| 取得有效維數 | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` |
+| 取得正有效維數 | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` |
+| 取得負有效維數 | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` |
+| 取得索引處的值 | `get(index)` | `get(index)` | `get(index)` |
+| 寫入索引處的值 | `set(index, value)` | `set(index, value)` | `set(index, value)` |
+| 重置索引處的值 | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` |
+| 重置整個向量 | `resetVector()` | `reset_vector()` | `reset_vector()` |
+| 取得全部條目，按索引降序 | `elements()` | `elements()` | `elements()` |
+| 取得全部條目，按索引升序 | `invertedElements()` | `inverted_elements()` | `inverted_elements()` |
+| 取得全部非空索引，按索引降序 | `indexes()` | `indexes()` | `indexes()` |
+| 取得全部非空索引，按索引升序 | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` |
+| 取得全部非空值，按索引降序 | `values()` | `values()` | `values()` |
+| 取得全部非空值，按索引升序 | `invertedValues()` | `inverted_values()` | `inverted_values()` |
+| 取得從左數第 n+1 個條目 | `element(n)` | `element(n)` | `element(n)` |
+| 取得從左數第 n+1 個條目的索引 | `elementIndex(n)` | `element_index(n)` | `element_index(n)` |
+| 取得從左數第 n+1 個條目的值 | `elementValue(n)` | `element_value(n)` | `element_value(n)` |
+| 取得從右數第 n+1 個條目 | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` |
+| 取得從右數第 n+1 個條目的索引 | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` |
+| 取得從右數第 n+1 個條目的值 | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` |
+| 取得左起第 n+1 位有效數字 | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` |
+| 取得右起第 n+1 位有效數字 | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` |
+| 迭代 | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` |
+| 複製 | `clone()` | 拷貝建構 | `clone()` |
+| 批次建構 | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` |
 
-| 鍵 | 型別 | 意義 |
-| --- | --- | --- |
-| `index` | 整數 | 位置，可負可不負 |
-| `value` | 任意 | 存放在該處的值 |
+*Rust 的取值與列舉要求 `T: Clone`，寫入、重置與改預設值要求 `T: PartialEq`；C++ 要求可複製與 `operator==`*
 
-向量序列化後就只有它的條目，並按下標升冪排列。預設值不屬於這個結構，因此往返時要把它一併帶上
-
-## TypeScript
-
-已發布為 `@calbona/sparse-vector`。用法與 API 參考見 [`typescript/README.md`](../typescript/README.md)
-
-## C++
-
-純標頭檔的 C++17 實作，從倉庫接入，尚未進入 vcpkg 或 Conan。用法與 API 參考見 [`c++/README.md`](../c++/README.md)
-
-## Rust
-
-已發佈為 `sparse-vector-rs`。用法與 API 參考見 [`rust/README.md`](../rust/README.md)
+*越界，或在空向量上取有效數字時，TypeScript 拋 `TypeError` / `RangeError`，C++ 拋 `std::out_of_range`，Rust panic*
 
 ## 授權條款
 

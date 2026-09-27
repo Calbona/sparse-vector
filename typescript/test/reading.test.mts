@@ -31,8 +31,7 @@ describe('reading', () => {
     for (const bad of [1.5, NaN, Infinity, -Infinity]) {
       assert.throws(() => vector.get(bad), TypeError);
       assert.throws(() => vector.set(bad, 1), TypeError);
-      assert.throws(() => vector.delete(bad), TypeError);
-      assert.throws(() => vector.has(bad), TypeError);
+      assert.throws(() => vector.resetValue(bad), TypeError);
     }
   });
 });

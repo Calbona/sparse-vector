@@ -7,7 +7,7 @@ import { SV_vector } from '../dist/index.js';
 describe('default value', () => {
   it('defaults to the number 0 when omitted', () => {
     const vector = new SV_vector();
-    assert.equal(vector.defaultValue, 0);
+    assert.equal(vector.getDefaultValue, 0);
     assert.equal(vector.get(5), 0);
   });
 
@@ -19,7 +19,7 @@ describe('default value', () => {
 
   it('honours an explicit undefined default', () => {
     const vector = new SV_vector<number | undefined>(undefined);
-    assert.equal(vector.defaultValue, undefined);
+    assert.equal(vector.getDefaultValue, undefined);
     assert.equal(vector.get(0), undefined);
   });
 
@@ -28,7 +28,7 @@ describe('default value', () => {
     vector.set(1, 42);
     assert.equal(vector.get(2), 0);
 
-    vector.defaultValue = -1;
+    vector.setDefaultValue = -1;
     assert.equal(vector.get(2), -1);
     assert.equal(vector.get(1), 42);
   });

@@ -1,4 +1,4 @@
-//! Mirrors the `SV_vector.from` block of the TypeScript suite.
+//! Mirrors the `SV_vector.fromElements` block of the TypeScript suite.
 
 use sparse_vector::{Element, SparseVector};
 
@@ -30,12 +30,12 @@ fn builds_from_elements_dropping_defaults_and_favouring_the_last_duplicate() {
         vector.elements(),
         [
             Element {
-                index: 1,
-                value: "a"
-            },
-            Element {
                 index: 3,
                 value: "last"
+            },
+            Element {
+                index: 1,
+                value: "a"
             },
         ]
     );
@@ -50,13 +50,13 @@ fn takes_a_default_value() {
         }],
         "z",
     );
-    assert_eq!(vector.default_value(), &"z");
+    assert_eq!(vector.get_default_value(), &"z");
     assert_eq!(vector.get(99), "z");
 }
 
 // Stands in for the TypeScript case `round-trips through JSON when the default is
-// carried alongside`. There is no JSON encoder here, so the round trip goes
-// through elements(), which is the contract.
+// carried alongside`. Nothing here writes JSON, so the round trip goes through
+// elements(), which is the contract.
 #[test]
 fn round_trips_when_the_default_is_carried_alongside() {
     let mut original = SparseVector::with_default("none");
@@ -80,6 +80,6 @@ fn accepts_any_into_iterator() {
         0,
     );
 
-    assert_eq!(vector.len(), 3); // index 0 holds 0, which is the default
-    assert_eq!(vector.keys(), [1, 2, 3]);
+    assert_eq!(vector.get_element_amount(), 3); // index 0 holds 0, which is the default
+    assert_eq!(vector.indexes(), [3, 2, 1]);
 }

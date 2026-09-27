@@ -1,38 +1,40 @@
-[English](../README.md) · [简体中文](zh-CN.md) · [繁體中文](zh-TW.md) · **日本語** · [Español](es-ES.md) · [Français](fr-FR.md) · [Русский](ru-RU.md)
+[English](../README.md) · [Deutsch](de-DE.md) · [Español](es-ES.md) · [Français](fr-FR.md) · [Italiano](it-IT.md) · **日本語** · [한국어](ko-KR.md) · [Русский](ru-RU.md) · [Tiếng Việt](vi-VN.md) · [简体中文](zh-CN.md) · [繁體中文](zh-TW.md)
 
 # sparse-vector
 
-スパースベクトル：整数の添字から任意の値への写像で、既定値と異なる位置だけを格納する
+## 概要
 
-## 考え方
+- **スパースベクトルはベクトルではない**
 
-添字は負でもよく、連続していなくてもよい
+	その「添字」はゼロから始まるものでも、左から右へ並ぶものでもない。むしろ人が数を手書きするときの書き方に近く、添字は位取りの重みにあたるので、正の無限大から負の無限大まで広がる。もちろん言語の制約上、無限大は実在しない。TypeScript では `number`、C++ では `int64_t`、Rust では `i64` である。
 
-つまり、要素が三つしかないベクトルは三つ分しか占めない —— その三つの添字が `0, 1, 2` でも `-10^9, 0, 10^9` でも
+	また、数学的なベクトルではない以上、演算も持たない。その意味では辞書の一種でもあり、しかもどの位にも任意の型のデータを実際に置ける。
 
-このライブラリは意図的に、数学的な意味でのベクトルでは**ない**。演算は一切持たず、ただのデータ構造である
+- **スパースベクトルの仕組み**
 
-## 実装
+	既定値と異なる位置だけを格納する。
 
-同じ型を三つの言語で提供している。以下に挙げる規則はすべて共通で、違いは綴りだけである
+	「要素」とは、添字ひとつと、既定値とは異なる値ひとつを組にしたオブジェクトのこと。それをいくつか並べて配列にし、既定値を添えればできあがり。添字が何であれ、要素が k 個しかなければメモリは O(k) である。
 
-| 言語 | パッケージ | バージョン | ディレクトリ | 状態 |
+## ライブラリ
+
+| 言語 | パッケージ | 最新バージョン | 状態 | README |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 1.1.0 | [`typescript/`](../typescript/) | リリース済み |
-| C++ | `sparse-vector` | 1.1.0 | [`c++/`](../c++/) | リリース済み |
-| Rust | `sparse-vector-rs` | 1.1.0 | [`rust/`](../rust/) | リリース済み |
+| TypeScript | `@calbona/sparse-vector` | 2.0.0 | リリース済み | [`typescript/`](../typescript/) |
+| C++ | `sparse-vector` | 2.0.0 | リリース済み | [`c++/`](../c++/) |
+| Rust | `sparse-vector-rs` | 2.0.0 | リリース済み | [`rust/`](../rust/) |
 
-三つのパッケージはそれぞれ独立に採番されており、リポジトリ全体のバージョンは 1.0.0 である。現時点で三者のセマンティクスは同一である
-
-## インストール
-
-**TypeScript**
+### TypeScript
 
 ```sh
 npm install @calbona/sparse-vector
 ```
 
-**C++** —— vcpkg や Conan へはまだリリースされていない。ヘッダは二つだけでリンクするものはなく、CMake からリポジトリを指せばよい：
+### C++
+
+*まだ vcpkg や Conan にはリリースされていない*
+
+CMake からリポジトリを指せばよい
 
 ```cmake
 include(FetchContent)
@@ -47,65 +49,82 @@ FetchContent_MakeAvailable(sparse-vector)
 target_link_libraries(your-target PRIVATE Calbona::sparse-vector)
 ```
 
-プロジェクトの隣にチェックアウトを置く場合も同じで、`add_subdirectory(path/to/sparse-vector/c++)` と書く。インストール先には CMake パッケージもエクスポートされるので、`find_package(sparse-vector)` も使える
+プロジェクトの隣にチェックアウトを置く場合も同じで、`add_subdirectory(path/to/sparse-vector/c++)` と書く
+インストール先には CMake パッケージもエクスポートされるので、`find_package(sparse-vector)` も使える
 
-**Rust** —— 取り込む crate 名は、パッケージ名ではなく `sparse_vector` である点に注意：
+### Rust
 
 ```sh
 cargo add sparse-vector-rs
 ```
 
-各実装のディレクトリには、その言語の使い方・API リファレンスを記した README がある。このページでは三つの実装に共通するセマンティクスを定義し、三度繰り返さずに済むようにしている
+## セマンティクスの詳細
 
-## すべての実装に共通するセマンティクス
+### 空き位置の既定値
 
-### 既定値
+- スパースベクトルの生成時に既定値を指定する
 
-ベクトルは既定値とともに生成される。既定値とは、明示的な要素を持たないすべての位置が返す値である。省略時は number の `0`
+- 既定値はあとから差し替えられる
 
-既定値はあとから差し替えられる。差し替えると、新しい既定値と等しいと判定される要素が即座に取り除かれる
-
-すべての位置に値が定義されているため、読み取りは全域的である。格納されていてもいなくても、範囲内でも遠く外でも、任意の整数は例外ではなく値を返す
+- どの位にも値が定まっており、読み取りは常に結果を返す。どんな整数でも値が返る
 
 ### 既定値に等しい要素は決して保持されない
 
-ある位置に既定値を書き込むことは、そこにあったものを取り除くのと同じである。これがこの構造を疎に保つ：メモリは既定値と実際に異なる要素の数 k に対して O(k) であり、添字がどれだけ離れていても、どれだけ負であっても変わらない
+- ある位に既定値を書き込むことは、そこにあったものを消すのと同じである
 
-### 取り除きは各言語自身の等価判定で行う
+- 既定値を差し替えると、それに等しい要素は即座に取り除かれる
 
-ある項目が新しい既定値と等しいと判定されたときに取り除かれる。使うのはその言語の日常的な等価判定である —— TypeScript なら `===`、C++ なら `operator==`、Rust なら `PartialEq`
+- この原則が構造を疎に保つ
 
-数値と文字列については三者が完全に一致する。厄介な場合も含めて：
+### 等価判定
 
-- `-0.0` は `0.0` と等しいので、既定値が `0.0` のとき格納した `-0.0` は取り除かれる
-- `NaN` はそれ自身と等しくないので、既定値自体が `NaN` であっても、格納した `NaN` は保持される
+- ある要素が既定値と等しいかどうかは、各言語の日常的な判定に従う。TypeScript なら `===`、C++ なら `operator==`、Rust なら `PartialEq`
 
-TypeScript の `0`、`'0'`、`false`、`null` は四つの異なる型の値であり、完全に一致したものだけが取り除かれる。静的型付けのベクタは単一の `T` しか持てないため、C++ と Rust ではこの組はそもそも現れない —— ただしそこで示されている規則、すなわち「等価判定は正確であり、暗黙の変換をしない」は三者すべてで成り立つ
+- 厄介な場合：
+	- `-0.0` は `0.0` と等しい
+	- `NaN` はそれ自身と等しくない
+	- `0`、`'0'`、`false`、`null` は四つの異なる型の値である
+	- `===` はオブジェクトの参照を比較し、`operator==` と `PartialEq` は構造を比較する。内容が同じで互いに独立した二つのオブジェクトは、TypeScript では一つの値、C++ と Rust では二つの値なので、前者では保持され、後二者では取り除かれる
 
-オブジェクトについては三者が本当に分かれる。そしてここが、値の「同一性」が唯一見える場所である。TypeScript の `===` はオブジェクトの参照を比較し、`operator==` と `PartialEq` はふつう構造を比較する。内容が同じで互いに独立した二つのオブジェクトは、TypeScript では一つの値、C++ と Rust では二つの値である —— したがって内容が同じで独立した項目は、前者では保持され、後二者では取り除かれる。同一性が必要なら、それを型自身の等価判定に組み込めばよい —— ポインタ型を使えばそのまま得られる。`std::shared_ptr` の `operator==` はポインタを比較し、`Rc<T>` は `Rc::ptr_eq` で比較する newtype で包めばよい。C++ と Rust の README にそれぞれその書き方がある
+- 同一性が必要なら、それを型自身の等価判定に組み込めばよい。ポインタ型を使えばそのまま得られる —— `std::shared_ptr` の `operator==` はポインタを比較し、`Rc<T>` は `Rc::ptr_eq` で比較する newtype で包めばよい。詳しくは C++ と Rust の README を参照
 
-### シリアライズ
+## API
 
-要素は、ちょうど二つのキーを持つ普通のオブジェクトである：
+| 役割 | TypeScript | C++ | Rust |
+| --- | --- | --- | --- |
+| スパースベクトルの生成（既定値は省略可） | `new SV_vector()` | `SV_vector()` | `SparseVector::new()`（`f64` のみ）/ `SparseVector::default()` |
+| スパースベクトルの生成 | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::with_default(default)` |
+| 既定値の取得 | `getDefaultValue` | `get_default_value()` | `get_default_value()` |
+| 既定値の変更 | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` |
+| 要素数の取得 | `getElementAmount` | `get_element_amount()` | `get_element_amount()` |
+| 有効次元の取得 | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` |
+| 正の有効次元の取得 | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` |
+| 負の有効次元の取得 | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` |
+| 添字の位置の値を取得 | `get(index)` | `get(index)` | `get(index)` |
+| 添字の位置に値を書き込む | `set(index, value)` | `set(index, value)` | `set(index, value)` |
+| 添字の位置の値をリセット | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` |
+| ベクトル全体をリセット | `resetVector()` | `reset_vector()` | `reset_vector()` |
+| すべての要素を添字の降順で取得 | `elements()` | `elements()` | `elements()` |
+| すべての要素を添字の昇順で取得 | `invertedElements()` | `inverted_elements()` | `inverted_elements()` |
+| 空でない添字をすべて降順で取得 | `indexes()` | `indexes()` | `indexes()` |
+| 空でない添字をすべて昇順で取得 | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` |
+| 空でない値をすべて降順で取得 | `values()` | `values()` | `values()` |
+| 空でない値をすべて昇順で取得 | `invertedValues()` | `inverted_values()` | `inverted_values()` |
+| 左から n+1 番目の要素を取得 | `element(n)` | `element(n)` | `element(n)` |
+| その要素の添字を取得 | `elementIndex(n)` | `element_index(n)` | `element_index(n)` |
+| その要素の値を取得 | `elementValue(n)` | `element_value(n)` | `element_value(n)` |
+| 右から n+1 番目の要素を取得 | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` |
+| その要素の添字を取得 | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` |
+| その要素の値を取得 | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` |
+| 左から n+1 番目の有効数字を取得 | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` |
+| 右から n+1 番目の有効数字を取得 | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` |
+| 反復 | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` |
+| 複製 | `clone()` | コピー構築 | `clone()` |
+| 一括生成 | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` |
 
-| キー | 型 | 意味 |
-| --- | --- | --- |
-| `index` | 整数 | 位置。負でも負でなくてもよい |
-| `value` | 任意 | そこに格納されている値 |
+*Rust では値の取得と列挙に `T: Clone`、書き込み・リセット・既定値の変更に `T: PartialEq` が必要。C++ ではコピー可能であることと `operator==` が必要*
 
-ベクトルは要素だけを添字の昇順でシリアライズする。既定値はこの形式には含まれないので、往復させる際は一緒に持ち回る必要がある
-
-## TypeScript
-
-リリース済み（`@calbona/sparse-vector`）。使い方・API リファレンスは [`typescript/README.md`](../typescript/README.md) を参照
-
-## C++
-
-ヘッダオンリーの C++17 実装で、リポジトリから取り込む。vcpkg や Conan へはまだ入っていない。使い方・API リファレンスは [`c++/README.md`](../c++/README.md) を参照
-
-## Rust
-
-`sparse-vector-rs` としてリリース済み。使い方・API リファレンスは [`rust/README.md`](../rust/README.md) を参照
+*範囲外、または空のベクトルで有効数字を取ろうとしたとき、TypeScript は `TypeError` / `RangeError` を投げ、C++ は `std::out_of_range` を投げ、Rust は panic する*
 
 ## ライセンス
 

@@ -1,4 +1,4 @@
-// Mirrors the `SV_vector.from` block of the TypeScript suite.
+// Mirrors the `SV_vector.fromElements` block of the TypeScript suite.
 
 #include <string>
 #include <vector>
@@ -18,9 +18,9 @@ SV_TEST(builds_from_elements_dropping_defaults_and_favouring_the_last_duplicate)
   };
 
   const std::string empty;
-  const sv::SV_vector<std::string> vector = sv::SV_vector<std::string>::from(input, empty);
+  const sv::SV_vector<std::string> vector = sv::SV_vector<std::string>::from_elements(input, empty);
 
-  const std::vector<Element> expected{Element{1, "a"}, Element{3, "last"}};
+  const std::vector<Element> expected{Element{3, "last"}, Element{1, "a"}};
   SV_CHECK_EQ(vector.elements(), expected);
 }
 
@@ -28,15 +28,15 @@ SV_TEST(takes_a_default_value) {
   using Element = sv::SV_element<std::string>;
 
   const std::vector<Element> input{Element{1, "x"}};
-  const sv::SV_vector<std::string> vector = sv::SV_vector<std::string>::from(input, "z");
+  const sv::SV_vector<std::string> vector = sv::SV_vector<std::string>::from_elements(input, "z");
 
-  SV_CHECK_EQ(vector.default_value(), std::string("z"));
+  SV_CHECK_EQ(vector.get_default_value(), std::string("z"));
   SV_CHECK_EQ(vector.get(99), std::string("z"));
 }
 
 // Stands in for the TypeScript case `round-trips through JSON when the default is
-// carried alongside`. There is no JSON encoder here, so the round trip goes
-// through elements(), which is the contract.
+// carried alongside`. Nothing here writes JSON, so the round trip goes through
+// elements(), which is the contract.
 SV_TEST(round_trips_when_the_default_is_carried_alongside) {
   const std::string none = "none";
   sv::SV_vector<std::string> original(none);
@@ -44,7 +44,7 @@ SV_TEST(round_trips_when_the_default_is_carried_alongside) {
   original.set(10, "b");
 
   const sv::SV_vector<std::string> restored =
-      sv::SV_vector<std::string>::from(original.elements(), none);
+      sv::SV_vector<std::string>::from_elements(original.elements(), none);
 
   SV_CHECK_EQ(restored.elements(), original.elements());
   SV_CHECK_EQ(restored.get(0), std::string("none"));
@@ -64,8 +64,8 @@ SV_TEST(accepts_any_input_iterator) {
   const sv::SV_vector<sv::index_type> vector =
       sv::SV_vector<sv::index_type>::from_elements(input.begin(), input.end(), 0);
 
-  SV_CHECK_EQ(vector.size(), 3u);  // index 0 holds 0, which is the default
+  SV_CHECK_EQ(vector.get_element_amount(), 3u);  // index 0 holds 0, which is the default
 
-  const std::vector<sv::index_type> expected_keys{1, 2, 3};
-  SV_CHECK_EQ(vector.keys(), expected_keys);
+  const std::vector<sv::index_type> expected_indexes{3, 2, 1};
+  SV_CHECK_EQ(vector.indexes(), expected_indexes);
 }

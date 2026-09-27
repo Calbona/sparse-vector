@@ -13,7 +13,7 @@ target_link_libraries(sv_tests PRIVATE Calbona::sparse-vector)
 
 if(MSVC)
   # /WX is deliberately absent. MSVC's C4127 ("conditional expression is
-  # constant") fires on checks such as SV_CHECK_EQ(vector.size(), 0u), and
+  # constant") fires on checks such as SV_CHECK_EQ(vector.get_element_amount(), 0u), and
   # fighting the compiler over its own macro expansion is not worth it.
   # /utf-8 because this checkout's path contains non-ASCII characters.
   target_compile_options(sv_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)

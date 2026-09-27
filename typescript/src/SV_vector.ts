@@ -1,45 +1,56 @@
 import type { SV_element } from './SV_element';
 
 /**
- * a sparse vector: a mapping from integer index to an arbitrary value, in which
- * only the positions that differ from a default value are stored
- *
- * Because only non-default positions are kept, an SV_vector occupies O(k) memory for k stored entries no matter how far apart the indices are, and whether they are large or negative. Indices need not be contiguous, and an index holds no explicit entry simply reports the {@link defaultValue}.
+ * a sparse vector: a mapping from integer index to an arbitrary value that stores only the
+ * positions differing from the default value, largest index leftmost
  */
 export class SV_vector<T = number> {
   private readonly _entries = new Map<number, T>();
   private _default: T;
+  private _sortedIndexes: number[] | undefined;
 
-  /**
-   * @param defaultValue value reported for every position that has no explicit entry, defaults to the number `0`
-   */
+  /** @param defaultValue read back at every position with no explicit entry; `0` when omitted */
   constructor(...args: [] | [defaultValue: T]) {
     this._default = args.length > 0 ? (args[0] as T) : (0 as unknown as T);
   }
 
-  get defaultValue(): T {
+  get getDefaultValue(): T {
     return this._default;
   }
 
-  set defaultValue(next: T) {
+  set setDefaultValue(next: T) {
     this._default = next;
     this._prune();
   }
 
-  /**
-   * number of explicitly stored entries
-   */
-  get size(): number {
+  /** number of explicitly stored entries */
+  get getElementAmount(): number {
     return this._entries.size;
   }
 
-  /** whether `index` has an explicitly stored entry */
-  has(index: number): boolean {
-    return this._entries.has(assertIndex(index));
+  /** distance between the leftmost and rightmost entries, both included; 0 when nothing is stored */
+  get getSignificantDimension(): number {
+    const ascending = this._ascendingIndexes();
+    const rightmost = ascending[0];
+    const leftmost = ascending[ascending.length - 1];
+    return leftmost === undefined || rightmost === undefined ? 0 : leftmost - rightmost + 1;
+  }
+
+  /** the leftmost index when positive, else 0 */
+  get getPlusDimension(): number {
+    const ascending = this._ascendingIndexes();
+    const leftmost = ascending[ascending.length - 1] ?? 0;
+    return leftmost > 0 ? leftmost : 0;
+  }
+
+  /** the rightmost index negated when negative, else 0 */
+  get getMinusDimension(): number {
+    const rightmost = this._ascendingIndexes()[0] ?? 0;
+    return rightmost < 0 ? -rightmost : 0;
   }
 
   /**
-   * get `value` at `index`
+   * the value at `index`, or the default when nothing is stored there
    *
    * @throws {TypeError} If `index` is not an integer.
    */
@@ -49,54 +60,78 @@ export class SV_vector<T = number> {
   }
 
   /**
-   * insert or update `value` at `index`
+   * inserts or updates the entry at `index`, returning `this`
    *
    * @throws {TypeError} If `index` is not an integer.
    */
   set(index: number, value: T): this {
     assertIndex(index);
     if (value === this._default) {
-      this._entries.delete(index);
+      if (this._entries.delete(index)) {
+        this._invalidate();
+      }
     } else {
+      if (!this._entries.has(index)) {
+        this._invalidate();
+      }
       this._entries.set(index, value);
     }
     return this;
   }
 
   /**
-   * remove the explicit entry at `index`, so it reads back as {@link defaultValue}
+   * resets the entry at `index` to the default, returning whether there was one
    *
    * @throws {TypeError} If `index` is not an integer.
    */
-  delete(index: number): boolean {
-    return this._entries.delete(assertIndex(index));
+  resetValue(index: number): boolean {
+    const removed = this._entries.delete(assertIndex(index));
+    if (removed) {
+      this._invalidate();
+    }
+    return removed;
   }
 
-  /**
-   * remove every explicit entry
-   * default value kept
-   */
-  clear(): void {
-    this._entries.clear();
+  /** resets every entry, keeping the default */
+  resetVector(): void {
+    if (this._entries.size > 0) {
+      this._entries.clear();
+      this._invalidate();
+    }
   }
 
-  /** get explicit entries in ascending index order */
+  /** every entry, descending by index */
   elements(): SV_element<T>[] {
-    return this._sortedIndices().map((index) => ({ index, value: this._stored(index) }));
+    return this._orderedIndices().map((index) => ({ index, value: this._stored(index) }));
   }
 
-  /** get indices holding an explicit entry in ascending order */
-  keys(): number[] {
-    return this._sortedIndices();
+  /** every entry, ascending by index */
+  invertedElements(): SV_element<T>[] {
+    return this._orderedIndices(true).map((index) => ({ index, value: this._stored(index) }));
   }
 
-  /** get stored values in ascending order */
+  /** every stored index, descending */
+  indexes(): number[] {
+    return this._orderedIndices();
+  }
+
+  /** every stored index, ascending */
+  invertedIndexes(): number[] {
+    return this._orderedIndices(true);
+  }
+
+  /** every stored value, descending by index */
   values(): T[] {
-    return this._sortedIndices().map((index) => this._stored(index));
+    return this._orderedIndices().map((index) => this._stored(index));
+  }
+
+  /** every stored value, ascending by index */
+  invertedValues(): T[] {
+    return this._orderedIndices(true).map((index) => this._stored(index));
   }
 
   /**
-   * get the element at position `n` of {@link elements()}, i.e. the (n+1)-th explicit entry counting from the left
+   * the (n+1)-th entry from the left, the ordinal numbering the entries and not the positions
    *
    * @throws {RangeError} If `n` is negative, or no explicit entry sits that far from the left.
    * @throws {TypeError} If `n` is not an integer.
@@ -107,7 +142,7 @@ export class SV_vector<T = number> {
   }
 
   /**
-   * get the index of the element at position `n` of {@link elements()}
+   * the index {@link element} sits at
    *
    * @throws {RangeError} If `n` is negative, or no explicit entry sits that far from the left.
    * @throws {TypeError} If `n` is not an integer.
@@ -117,7 +152,7 @@ export class SV_vector<T = number> {
   }
 
   /**
-   * get the value of the element at position `n` of {@link elements()}
+   * the value {@link element} holds
    *
    * @throws {RangeError} If `n` is negative, or no explicit entry sits that far from the left.
    * @throws {TypeError} If `n` is not an integer.
@@ -127,76 +162,68 @@ export class SV_vector<T = number> {
   }
 
   /**
-   * get the element at position `n` of {@link elements()} counted from the right, i.e. the last explicit entry for `n` of 0
+   * the (n+1)-th entry from the right, `invertedElement(0)` being the rightmost
    *
    * @throws {RangeError} If `n` is negative, or no explicit entry sits that far from the right.
    * @throws {TypeError} If `n` is not an integer.
    */
-  lastElement(n: number): SV_element<T> {
-    const index = this.lastElementIndex(n);
+  invertedElement(n: number): SV_element<T> {
+    const index = this.invertedElementIndex(n);
     return { index, value: this._stored(index) };
   }
 
   /**
-   * get the index of the element at position `n` of {@link elements()} counted from the right
+   * the index {@link invertedElement} sits at
    *
    * @throws {RangeError} If `n` is negative, or no explicit entry sits that far from the right.
    * @throws {TypeError} If `n` is not an integer.
    */
-  lastElementIndex(n: number): number {
+  invertedElementIndex(n: number): number {
     return this._ordinalIndex(n, true);
   }
 
   /**
-   * get the value of the element at position `n` of {@link elements()} counted from the right
+   * the value {@link invertedElement} holds
    *
    * @throws {RangeError} If `n` is negative, or no explicit entry sits that far from the right.
    * @throws {TypeError} If `n` is not an integer.
    */
-  lastElementValue(n: number): T {
-    return this._stored(this.lastElementIndex(n));
+  invertedElementValue(n: number): T {
+    return this._stored(this.invertedElementIndex(n));
   }
 
   /**
-   * Treating the first explicit entry as the first significant digit, get the
-   * value `n` positions to its right. Empty positions in between count, the way
-   * the zeros inside a number count towards its sign
-   *
-   * `n` may be negative, which walks left of that first entry instead
+   * the value `n` positions right of the leftmost entry, empty positions counting; a negative `n`
+   * walks left of it, into the default value
    *
    * @throws {RangeError} If no entry is stored at all, so there is nothing to measure from.
    * @throws {TypeError} If `n` is not an integer.
    */
   leftSignificantValue(n: number): T {
     assertIndex(n);
-    const first = this._anchor(true);
-    return this.get(first + n);
+    const first = this._anchor(false);
+    return this.get(first - n);
   }
 
   /**
-   * Treating the last explicit entry as the first significant digit counting
-   * from the right, get the value `n` positions to its left. Empty positions in
-   * between count, the way the zeros inside a number count towards its sign
-   *
-   * `n` may be negative, which walks right of that last entry instead
+   * the value `n` positions left of the rightmost entry, a negative `n` walking right of it
    *
    * @throws {RangeError} If no entry is stored at all, so there is nothing to measure from.
    * @throws {TypeError} If `n` is not an integer.
    */
   rightSignificantValue(n: number): T {
     assertIndex(n);
-    const last = this._anchor(false);
-    return this.get(last - n);
+    const last = this._anchor(true);
+    return this.get(last + n);
   }
 
-  /** iterates the explicit entries in ascending order */
-  [Symbol.iterator](): IterableIterator<SV_element<T>> {
-    return this.elements()[Symbol.iterator]();
-  }
-
-  /** JSON form of this vector */
-  toJSON(): SV_element<T>[] {
-    return this.elements();
+  /** every entry, descending by index, read as the walk goes */
+  *[Symbol.iterator](): IterableIterator<SV_element<T>> {
+    const ascending = this._ascendingIndexes();
+    for (let i = ascending.length - 1; i >= 0; i -= 1) {
+      const index = ascending[i] as number;
+      yield { index, value: this._stored(index) };
+    }
   }
 
   /** an independent copy, default value included */
@@ -209,15 +236,14 @@ export class SV_vector<T = number> {
   }
 
   /**
-   * builds a vector from a sequence of elements
-   * Entries strictly equal to the default are dropped
-   * For a repeated index, the last element wins.
+   * builds from any iterable of elements, dropping those equal to the default and keeping the
+   * last of a repeated index
    *
    * @param elements entries to store, in any order
    * @param defaultValue same meaning as in the constructor
    * @throws {TypeError} If any element has a non-integer index.
    */
-  static from<T>(
+  static fromElements<T>(
     elements: Iterable<SV_element<T>>,
     ...args: [] | [defaultValue: T]
   ): SV_vector<T> {
@@ -228,63 +254,72 @@ export class SV_vector<T = number> {
     return vector;
   }
 
-  /** the indices of every stored entry */
-  private _sortedIndices(): number[] {
-    return [...this._entries.keys()].sort((a, b) => a - b);
+  /** the indices of every stored entry, descending, or ascending when `inverted` */
+  private _orderedIndices(inverted = false): number[] {
+    const ascending = this._ascendingIndexes();
+    return inverted ? ascending.slice() : ascending.slice().reverse();
   }
 
-  /** the index of the entry at 0-based ordinal `n`, from the left or from the right */
-  private _ordinalIndex(n: number, fromRight: boolean): number {
+  /** every stored index, ascending, sorted once and kept until the entries change */
+  private _ascendingIndexes(): number[] {
+    let sorted = this._sortedIndexes;
+    if (sorted === undefined) {
+      sorted = [...this._entries.keys()].sort((a, b) => a - b);
+      this._sortedIndexes = sorted;
+    }
+    return sorted;
+  }
+
+  private _invalidate(): void {
+    this._sortedIndexes = undefined;
+  }
+
+  private _ordinalIndex(n: number, inverted: boolean): number {
     assertOrdinal(n);
-    const indices = this._sortedIndices();
-    const index = fromRight ? indices[indices.length - 1 - n] : indices[n];
+    const ascending = this._ascendingIndexes();
+    const index = inverted ? ascending[n] : ascending[ascending.length - 1 - n];
     if (index === undefined) {
-      const side = fromRight ? 'right' : 'left';
+      const side = inverted ? 'right' : 'left';
       throw new RangeError(
-        `SV_vector holds ${indices.length} entries, so there is no entry ${n} from the ${side}`,
+        `SV_vector holds ${ascending.length} entries, so there is no entry ${n} from the ${side}`,
       );
     }
     return index;
   }
 
-  /** the outermost stored index, the first one or the last one */
-  private _anchor(fromLeft: boolean): number {
-    const indices = this._sortedIndices();
-    const index = fromLeft ? indices[0] : indices[indices.length - 1];
+  private _anchor(inverted: boolean): number {
+    const ascending = this._ascendingIndexes();
+    const index = inverted ? ascending[0] : ascending[ascending.length - 1];
     if (index === undefined) {
       throw new RangeError('SV_vector holds no entries, so there is nothing to measure from');
     }
     return index;
   }
 
-  /**the value stored at an index already known to be present */
   private _stored(index: number): T {
     return this._entries.get(index) as T;
   }
 
-  /**
-   * drops every entry strictly equal to the current default
-   */
   private _prune(): void {
+    let pruned = false;
     for (const [index, value] of this._entries) {
       if (value === this._default) {
         this._entries.delete(index);
+        pruned = true;
       }
+    }
+    if (pruned) {
+      this._invalidate();
     }
   }
 }
 
-/**
- * SV_vector indices are integers, negative ones included
- */
+/** SV_vector indices are integers, negative ones included */
 function assertIndex(index: number): number {
   return assertInteger(index, 'index');
 }
 
-/**
- * SV_vector ordinals number the entries from one end, so they start at 0 and are
- * never negative
- */
+/** SV_vector ordinals number the entries, starting at 0 and never negative */
 function assertOrdinal(n: number): number {
   const ordinal = assertInteger(n, 'ordinal');
   if (ordinal < 0) {

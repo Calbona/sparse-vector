@@ -2,6 +2,7 @@
 #define SV_VECTOR_HPP
 
 #include <cstddef>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -14,22 +15,18 @@
 
 namespace sv {
 
-/// A sparse vector: a mapping from integer index to arbitrary value, in which
-/// only the positions that differ from a default value are stored.
-///
-/// Because only non-default positions are kept, a vector occupies O(k) memory for
-/// k stored entries no matter how far apart the indices are, and whether they are
-/// large or negative. Indices need not be contiguous, and an index holding no
-/// explicit entry simply reports the default value.
+/// A sparse vector: a mapping from integer index to arbitrary value that stores only the
+/// positions differing from the default value. Entries are ordered largest index leftmost.
 template <class T = double>
 class SV_vector {
  public:
   using index_type = sv::index_type;
   using value_type = T;
   using element_type = SV_element<T>;
-  using container_type = std::map<index_type, T>;
+  /// The entry container, ordered by descending index, so begin() is the leftmost entry.
+  using container_type = std::map<index_type, T, std::greater<index_type>>;
 
-  /// A vector whose empty positions read back as `T{}`; for `double` that is 0.0.
+  /// A vector whose empty positions read back as `T{}`.
   SV_vector() = default;
 
   /// A vector whose empty positions read back as `defaultValue`.
@@ -44,15 +41,13 @@ class SV_vector {
   SV_vector& operator=(SV_vector&&) noexcept = default;
   ~SV_vector() = default;
 
-  /// The value reported for every position that has no explicit entry.
+  /// The value reported for every position with no explicit entry.
   ///
-  /// There is deliberately no non-const overload, which would let a caller change
-  /// the default without pruning; use set_default_value() for that.
-  [[nodiscard]] const T& default_value() const noexcept { return _default; }
+  /// There is deliberately no non-const overload; use set_default_value(), which prunes.
+  [[nodiscard]] const T& get_default_value() const noexcept { return _default; }
 
-  /// Replaces the default value, immediately pruning every entry equal to it.
-  ///
-  /// Pruning is one-way: the previous default is not remembered.
+  /// Replaces the default value, immediately pruning every entry equal to it. Pruning is
+  /// one-way: the previous default is not remembered.
   void set_default_value(const T& next) {
     _default = next;
     _prune();
@@ -65,19 +60,42 @@ class SV_vector {
   }
 
   /// The number of explicitly stored entries.
-  [[nodiscard]] std::size_t size() const noexcept { return _entries.size(); }
+  [[nodiscard]] std::size_t get_element_amount() const noexcept { return _entries.size(); }
 
-  /// Whether no entry is stored at all.
-  [[nodiscard]] bool empty() const noexcept { return _entries.empty(); }
-
-  /// Whether `index` has an explicitly stored entry.
-  [[nodiscard]] bool has(index_type index) const { return _entries.find(index) != _entries.end(); }
-
-  /// The value at `index`, or the default value when nothing is stored there.
+  /// The distance between the leftmost and rightmost entries, both included; zero when empty.
   ///
-  /// Reading is total: every integer, negative, huge or far outside anything ever
-  /// written, returns a value rather than failing. Returned by value because the
-  /// default branch has no entry to refer to.
+  /// @throws std::out_of_range when the span leaves the index_type range.
+  [[nodiscard]] index_type get_significant_dimension() const {
+    if (_entries.empty()) {
+      return 0;
+    }
+    const index_type leftmost = _entries.begin()->first;
+    const index_type rightmost = std::prev(_entries.end())->first;
+    return _checked_add(_checked_subtract(leftmost, rightmost), 1);
+  }
+
+  /// How far the vector reaches above zero: the leftmost index itself, or zero.
+  [[nodiscard]] index_type get_plus_dimension() const noexcept {
+    if (_entries.empty()) {
+      return 0;
+    }
+    const index_type leftmost = _entries.begin()->first;
+    return leftmost > 0 ? leftmost : 0;
+  }
+
+  /// How far the vector reaches below zero: the rightmost index negated, or zero.
+  ///
+  /// @throws std::out_of_range when the negation leaves the index_type range.
+  [[nodiscard]] index_type get_minus_dimension() const {
+    if (_entries.empty()) {
+      return 0;
+    }
+    const index_type rightmost = std::prev(_entries.end())->first;
+    return rightmost < 0 ? _checked_subtract(0, rightmost) : 0;
+  }
+
+  /// The value at `index`, or the default value when nothing is stored there. Reading is
+  /// total, so it returns by value: the default branch has no entry to refer to.
   [[nodiscard]] T get(index_type index) const {
     const auto entry = _entries.find(index);
     if (entry == _entries.end()) {
@@ -86,10 +104,8 @@ class SV_vector {
     return entry->second;
   }
 
-  /// Inserts or updates `value` at `index`, returning `*this` so calls chain.
-  ///
-  /// Writing a value equal to the default removes whatever was there instead of
-  /// storing it: that is what keeps the structure sparse.
+  /// Inserts or updates `value` at `index`, returning `*this` so calls chain. Writing the
+  /// default removes whatever was there instead of storing it.
   SV_vector& set(index_type index, const T& value) {
     if (value == _default) {
       _entries.erase(index);
@@ -109,15 +125,13 @@ class SV_vector {
     return *this;
   }
 
-  /// Removes the explicit entry at `index`, returning whether there was one.
-  ///
-  /// The position subsequently reads back as the default value.
-  bool erase(index_type index) { return _entries.erase(index) != 0; }
+  /// Resets the entry at `index`, returning whether there was one; it then reads as the default.
+  bool reset_value(index_type index) { return _entries.erase(index) != 0; }
 
-  /// Removes every explicit entry, keeping the default value.
-  void clear() noexcept { _entries.clear(); }
+  /// Resets every explicit entry, keeping the default value.
+  void reset_vector() noexcept { _entries.clear(); }
 
-  /// The explicit entries, in ascending index order.
+  /// The explicit entries, descending by index.
   [[nodiscard]] std::vector<element_type> elements() const {
     std::vector<element_type> out;
     out.reserve(_entries.size());
@@ -127,8 +141,18 @@ class SV_vector {
     return out;
   }
 
-  /// The indices holding an explicit entry, in ascending order.
-  [[nodiscard]] std::vector<index_type> keys() const {
+  /// The same entries, ascending by index.
+  [[nodiscard]] std::vector<element_type> inverted_elements() const {
+    std::vector<element_type> out;
+    out.reserve(_entries.size());
+    for (auto entry = _entries.rbegin(); entry != _entries.rend(); ++entry) {
+      out.push_back(element_type{entry->first, entry->second});
+    }
+    return out;
+  }
+
+  /// The stored indices, descending.
+  [[nodiscard]] std::vector<index_type> indexes() const {
     std::vector<index_type> out;
     out.reserve(_entries.size());
     for (const auto& entry : _entries) {
@@ -137,7 +161,17 @@ class SV_vector {
     return out;
   }
 
-  /// The stored values, in ascending index order.
+  /// The same indices, ascending.
+  [[nodiscard]] std::vector<index_type> inverted_indexes() const {
+    std::vector<index_type> out;
+    out.reserve(_entries.size());
+    for (auto entry = _entries.rbegin(); entry != _entries.rend(); ++entry) {
+      out.push_back(entry->first);
+    }
+    return out;
+  }
+
+  /// The stored values, descending by index.
   [[nodiscard]] std::vector<T> values() const {
     std::vector<T> out;
     out.reserve(_entries.size());
@@ -147,10 +181,18 @@ class SV_vector {
     return out;
   }
 
-  /// The element at 0-based ordinal `n` of elements(), counting from the left.
-  ///
-  /// The ordinal numbers the entries, not the positions: `element(0)` is the
-  /// leftmost stored entry however far out its index lies.
+  /// The same values, ascending by index.
+  [[nodiscard]] std::vector<T> inverted_values() const {
+    std::vector<T> out;
+    out.reserve(_entries.size());
+    for (auto entry = _entries.rbegin(); entry != _entries.rend(); ++entry) {
+      out.push_back(entry->second);
+    }
+    return out;
+  }
+
+  /// The (n+1)-th entry from the left. The ordinal numbers the entries, not the positions:
+  /// element(0) is the leftmost stored entry however far out its index lies.
   ///
   /// @throws std::out_of_range when fewer than n + 1 entries are stored.
   [[nodiscard]] element_type element(std::size_t n) const {
@@ -159,7 +201,6 @@ class SV_vector {
   }
 
   /// @copydoc element(std::size_t) const
-  ///
   /// @returns the index the entry sits at, not its ordinal.
   [[nodiscard]] index_type element_index(std::size_t n) const {
     return _at_ordinal(n, false)->first;
@@ -168,57 +209,42 @@ class SV_vector {
   /// @copydoc element(std::size_t) const
   [[nodiscard]] T element_value(std::size_t n) const { return _at_ordinal(n, false)->second; }
 
-  /// The element at 0-based ordinal `n` of elements(), counting from the right.
-  ///
-  /// `last_element(0)` is the rightmost stored entry.
+  /// The (n+1)-th entry from the right, inverted_element(0) being the rightmost.
   ///
   /// @throws std::out_of_range when fewer than n + 1 entries are stored.
-  [[nodiscard]] element_type last_element(std::size_t n) const {
+  [[nodiscard]] element_type inverted_element(std::size_t n) const {
     const auto entry = _at_ordinal(n, true);
     return element_type{entry->first, entry->second};
   }
 
-  /// @copydoc last_element(std::size_t) const
-  ///
+  /// @copydoc inverted_element(std::size_t) const
   /// @returns the index the entry sits at, not its ordinal.
-  [[nodiscard]] index_type last_element_index(std::size_t n) const {
+  [[nodiscard]] index_type inverted_element_index(std::size_t n) const {
     return _at_ordinal(n, true)->first;
   }
 
-  /// @copydoc last_element(std::size_t) const
-  [[nodiscard]] T last_element_value(std::size_t n) const { return _at_ordinal(n, true)->second; }
-
-  /// Treating the first stored entry as the first significant digit, the value
-  /// `n` positions to its right.
-  ///
-  /// Positions without an entry in between count, the way the zeros inside a
-  /// number count towards its sign. `n` may be negative, which walks left of that
-  /// first entry instead; the result is then the default value.
-  ///
-  /// @throws std::out_of_range when nothing is stored, so there is no position to
-  ///         measure from, or when the position leaves the index_type range.
-  [[nodiscard]] T left_significant_value(index_type n) const {
-    if (_entries.empty()) {
-      throw std::out_of_range("SV_vector holds no entries, so there is nothing to measure from");
-    }
-    return get(_checked_add(_entries.begin()->first, n));
+  /// @copydoc inverted_element(std::size_t) const
+  [[nodiscard]] T inverted_element_value(std::size_t n) const {
+    return _at_ordinal(n, true)->second;
   }
 
-  /// Treating the last stored entry as the first significant digit counting from
-  /// the right, the value `n` positions to its left.
+  /// The value `n` positions right of the leftmost entry, empty positions counting; a negative
+  /// `n` walks left of it, into the default value.
+  ///
+  /// @throws std::out_of_range when nothing is stored, or the position leaves the index_type range.
+  [[nodiscard]] T left_significant_value(index_type n) const {
+    return get(_checked_subtract(_anchor(false), n));
+  }
+
+  /// The value `n` positions left of the rightmost entry.
   ///
   /// @copydoc left_significant_value(index_type) const
   [[nodiscard]] T right_significant_value(index_type n) const {
-    if (_entries.empty()) {
-      throw std::out_of_range("SV_vector holds no entries, so there is nothing to measure from");
-    }
-    return get(_checked_subtract(std::prev(_entries.end())->first, n));
+    return get(_checked_add(_anchor(true), n));
   }
 
-  /// Iterates the explicit entries in ascending index order, borrowing them.
-  ///
-  /// The pair is the map's own, so `for (const auto& [index, value] : vector)`
-  /// works; reach for this instead of elements() when you do not want to allocate.
+  /// Iterates the entries descending by index, borrowing them, so
+  /// `for (const auto& [index, value] : vector)` works without allocating.
   [[nodiscard]] typename container_type::const_iterator begin() const noexcept {
     return _entries.begin();
   }
@@ -226,10 +252,8 @@ class SV_vector {
   /// @copydoc begin() const
   [[nodiscard]] typename container_type::const_iterator end() const noexcept { return _entries.end(); }
 
-  /// Builds a vector from a sequence of elements.
-  ///
-  /// Entries equal to the default are dropped, and for a repeated index the last
-  /// element wins, both because this goes through set().
+  /// Builds from a sequence of elements, dropping those equal to the default and keeping the
+  /// last of a repeated index.
   template <class InputIt>
   static SV_vector from_elements(InputIt first, InputIt last, const T& defaultValue) {
     SV_vector vector(defaultValue);
@@ -240,49 +264,51 @@ class SV_vector {
   }
 
   /// @copydoc from_elements(InputIt, InputIt, const T&)
-  ///
-  /// Uses `T{}` as the default value, matching the default constructor.
+  /// Uses `T{}` as the default value.
   template <class InputIt>
   static SV_vector from_elements(InputIt first, InputIt last) {
     return from_elements(first, last, T{});
   }
 
   /// @copydoc from_elements(InputIt, InputIt, const T&)
-  [[nodiscard]] static SV_vector from(const std::vector<element_type>& elements,
-                                      const T& defaultValue) {
+  /// The same, for a vector of elements.
+  [[nodiscard]] static SV_vector from_elements(const std::vector<element_type>& elements,
+                                               const T& defaultValue) {
     return from_elements(elements.begin(), elements.end(), defaultValue);
   }
 
-  /// @copydoc from(const std::vector<element_type>&, const T&)
-  [[nodiscard]] static SV_vector from(const std::vector<element_type>& elements) {
+  /// @copydoc from_elements(const std::vector<element_type>&, const T&)
+  [[nodiscard]] static SV_vector from_elements(const std::vector<element_type>& elements) {
     return from_elements(elements.begin(), elements.end());
   }
 
  private:
-  // Ordered on purpose: keys(), values(), elements() and begin()/end() all
-  // guarantee ascending index order, which this container gives for free.
+  // Descending, so begin() is the leftmost entry and the inverted views walk it backwards.
   container_type _entries;
   T _default{};
 
-  /// The entry at 0-based ordinal `n` from whichever end.
+  /// The outermost stored index: the leftmost, or the rightmost when `inverted`.
   ///
-  /// Walks the map rather than going through elements(), which would copy the
-  /// whole array to read one element of it.
-  typename container_type::const_iterator _at_ordinal(std::size_t n, bool from_right) const {
+  /// @throws std::out_of_range when nothing is stored.
+  index_type _anchor(bool inverted) const {
+    if (_entries.empty()) {
+      throw std::out_of_range("SV_vector holds no entries, so there is nothing to measure from");
+    }
+    return inverted ? std::prev(_entries.end())->first : _entries.begin()->first;
+  }
+
+  typename container_type::const_iterator _at_ordinal(std::size_t n, bool inverted) const {
     if (n >= _entries.size()) {
       throw std::out_of_range("SV_vector holds " + std::to_string(_entries.size()) +
                               " entries, so there is no entry " + std::to_string(n) +
-                              (from_right ? " from the right" : " from the left"));
+                              (inverted ? " from the right" : " from the left"));
     }
     const auto distance = static_cast<typename container_type::difference_type>(n);
-    return from_right ? std::prev(_entries.end(), distance + 1)
-                      : std::next(_entries.begin(), distance);
+    return inverted ? std::prev(_entries.end(), distance + 1)
+                    : std::next(_entries.begin(), distance);
   }
 
-  /// `anchor + n`, refusing to wrap.
-  ///
-  /// Signed overflow is undefined behaviour, so a shift that would leave the
-  /// index_type range is reported rather than left to do whatever it does.
+  /// `anchor + n`, refusing to wrap: signed overflow is undefined behaviour.
   static index_type _checked_add(index_type anchor, index_type n) {
     if (n > 0 && anchor > std::numeric_limits<index_type>::max() - n) {
       throw std::out_of_range("SV_vector position overflows index_type");
@@ -304,7 +330,6 @@ class SV_vector {
     return anchor - n;
   }
 
-  /// Drops every entry equal to the current default.
   void _prune() {
     for (auto entry = _entries.begin(); entry != _entries.end();) {
       if (entry->second == _default) {

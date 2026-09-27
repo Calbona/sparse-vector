@@ -1,10 +1,16 @@
-**English** · [简体中文](https://github.com/Calbona/sparse-vector/blob/main/docs/zh-CN.md) · [繁體中文](https://github.com/Calbona/sparse-vector/blob/main/docs/zh-TW.md) · [日本語](https://github.com/Calbona/sparse-vector/blob/main/docs/ja-JP.md) · [Español](https://github.com/Calbona/sparse-vector/blob/main/docs/es-ES.md) · [Français](https://github.com/Calbona/sparse-vector/blob/main/docs/fr-FR.md) · [Русский](https://github.com/Calbona/sparse-vector/blob/main/docs/ru-RU.md)
+**English** · [Deutsch](https://github.com/Calbona/sparse-vector/blob/main/docs/de-DE.md) · [Español](https://github.com/Calbona/sparse-vector/blob/main/docs/es-ES.md) · [Français](https://github.com/Calbona/sparse-vector/blob/main/docs/fr-FR.md) · [Italiano](https://github.com/Calbona/sparse-vector/blob/main/docs/it-IT.md) · [日本語](https://github.com/Calbona/sparse-vector/blob/main/docs/ja-JP.md) · [한국어](https://github.com/Calbona/sparse-vector/blob/main/docs/ko-KR.md) · [Русский](https://github.com/Calbona/sparse-vector/blob/main/docs/ru-RU.md) · [Tiếng Việt](https://github.com/Calbona/sparse-vector/blob/main/docs/vi-VN.md) · [简体中文](https://github.com/Calbona/sparse-vector/blob/main/docs/zh-CN.md) · [繁體中文](https://github.com/Calbona/sparse-vector/blob/main/docs/zh-TW.md)
 
 # @calbona/sparse-vector
 
-The TypeScript implementation of [sparse-vector](https://github.com/Calbona/sparse-vector#readme) — a mapping from integer indices to arbitrary values that stores only the positions differing from a default value. That page carries the [installation steps](https://github.com/Calbona/sparse-vector#installation) and the semantics all three implementations share; this one covers the TypeScript API
+The TypeScript implementation of [sparse-vector](https://github.com/Calbona/sparse-vector#readme) — a mapping from integer indices to arbitrary values that stores only the positions differing from a default value
 
-## Usage
+## Installation
+
+```sh
+npm install @calbona/sparse-vector
+```
+
+## Quick start
 
 ```ts
 import { SV_vector } from '@calbona/sparse-vector';
@@ -17,7 +23,7 @@ vector.set(-42, 'negative');
 vector.get(1_000_000); // 'far away'
 vector.get(-42);       // 'negative'
 vector.get(7);         // 0
-vector.size;           // 2
+vector.getElementAmount; // 2
 ```
 
 The default value can be given, and changed later; every position without an explicit entry reads back as it
@@ -27,7 +33,7 @@ const counts = new SV_vector<number | null>(null); // empty positions are null
 counts.set(3, 1);
 counts.get(4); // null
 
-counts.defaultValue = 0; // empty positions are now 0
+counts.setDefaultValue = 0; // empty positions are now 0
 ```
 
 Values are unrestricted; anything goes
@@ -39,90 +45,45 @@ tagged.set(0, { kind: 'header' });
 
 ## API
 
-### `new SV_vector<T>(defaultValue?)`
-
-Creates a vector
-
-`defaultValue` is the default value for empty positions, i.e. the value reported for every position without an explicit entry; it defaults to the number `0`
-
-`T` defaults to `number`
-
-### Properties
-
 | Member | Description |
 | --- | --- |
-| `defaultValue: T` | Readable and writable; assigning it immediately drops every entry strictly equal to the new default |
-| `size: number` | Number of explicitly stored entries |
-
-### Methods
-
-| Method | Description |
-| --- | --- |
-| `get(index): T` | The value at `index`; returns `defaultValue` when no explicit entry is there |
-| `set(index, value): this` | Insert or update, chainable |
-| `has(index): boolean` | Whether an explicit entry exists at `index` |
-| `delete(index): boolean` | Remove the explicit entry there, back to the default value |
-| `clear(): void` | Remove every explicit entry, back to the default value |
-| `elements(): SV_element<T>[]` | The explicit entries, in ascending index order |
-| `keys(): number[]` | The stored indices, ascending |
-| `values(): T[]` | The stored values, in ascending index order |
-| `element(n): SV_element<T>` | The (n+1)-th explicit entry from the left, i.e. `elements()[n]` |
-| `elementIndex(n): number` | The index that entry sits at |
-| `elementValue(n): T` | Its value |
-| `lastElement(n): SV_element<T>` | The same counting from the right, so `lastElement(0)` is the rightmost entry |
-| `lastElementIndex(n): number` | The index that entry sits at |
-| `lastElementValue(n): T` | Its value |
-| `leftSignificantValue(n): T` | The value `n` positions right of the first explicit entry |
-| `rightSignificantValue(n): T` | The value `n` positions left of the last explicit entry |
-| `clone(): SV_vector<T>` | An independent copy |
-| `[Symbol.iterator]()` | Iterates the explicit entries in ascending index order |
-| `toJSON(): SV_element<T>[]` | Same as `elements()`, so `JSON.stringify` works directly |
+| `new SV_vector()` | Builds a sparse vector, the default left out, which is then the number `0` |
+| `new SV_vector(defaultValue)` | Builds a sparse vector |
+| `getDefaultValue` | The value reported for every position without an explicit entry |
+| `setDefaultValue = next` | Assignable; assigning it immediately drops every entry strictly equal to the new default |
+| `getElementAmount` | Number of explicitly stored entries |
+| `getSignificantDimension` | The distance between the leftmost and rightmost entries, both included — `-2` and `5` are `8`. `0` when nothing is stored |
+| `getPlusDimension` | How far the vector reaches above zero: the leftmost index itself. `0` when nothing is stored above zero |
+| `getMinusDimension` | How far the vector reaches below zero: the rightmost index, negated. `0` when nothing is stored below zero |
+| `get(index)` | The value at `index`; the default when no explicit entry is there |
+| `set(index, value)` | Inserts or updates the entry, and returns `this`, so calls chain |
+| `resetValue(index)` | Resets the entry back to the default, returning whether there was one |
+| `resetVector()` | Resets every entry, keeping the default |
+| `elements()` | Every entry, in descending index order |
+| `invertedElements()` | The same entries in ascending index order |
+| `indexes()` | Every stored index, descending |
+| `invertedIndexes()` | The same indices in ascending order |
+| `values()` | Every stored value, in descending index order |
+| `invertedValues()` | The same values in ascending index order |
+| `element(n)` | The (n+1)-th entry from the left, i.e. `elements()[n]` |
+| `elementIndex(n)` | The index that entry sits at |
+| `elementValue(n)` | Its value |
+| `invertedElement(n)` | The same counting from the right, i.e. `invertedElements()[n]`; `invertedElement(0)` is the rightmost entry |
+| `invertedElementIndex(n)` | The index that entry sits at |
+| `invertedElementValue(n)` | Its value |
+| `leftSignificantValue(n)` | The value `n` positions right of the first stored entry |
+| `rightSignificantValue(n)` | The value `n` positions left of the last stored entry |
+| `[Symbol.iterator]()` | Iterates every entry in descending index order |
+| `clone()` | An independent copy |
+| `SV_vector.fromElements(elements, defaultValue?)` | Builds from an iterable of `SV_element`; entries strictly equal to the default are dropped, and for a repeated index the last one wins |
 
 `index` must be an integer — positive or negative; a non-integer throws `TypeError`
 
-Reading a position outside the data range does not throw, it returns the default value: that is the whole point of this type
+Reading a position outside the data range does not throw, it returns the default value: that is the point of this type
 
-The `n` the ordinal methods take is 0-based and numbers the *entries*, not the positions: `element(0)` is the leftmost stored entry, however far out its index lies. An ordinal past the end, or a negative one, throws `RangeError`; a non-integer throws `TypeError`. These reuse `elements()`, so they read a copy of one entry rather than of the whole array
+The `n` the ordinal methods take is 0-based; an ordinal past the end, or a negative one, throws `RangeError`, and a non-integer throws `TypeError`
 
-```ts
-const vector = new SV_vector<string>('');
-vector.set(10, 'a');
-vector.set(13, 'd');
-
-vector.element(0);            // { index: 10, value: 'a' } — the first entry stored
-vector.elementValue(1);       // 'd'
-vector.lastElementValue(0);   // 'd' — the last entry stored
-```
-
-The significant pair is the other kind of question: it measures *positions*. The first stored entry stands in for the first significant digit, the last one for the last, and the empty positions in between count the way the zeros inside a number count
-
-```ts
-vector.leftSignificantValue(0);   // 'a'  — index 10
-vector.leftSignificantValue(2);   // ''   — index 12, an empty position
-vector.leftSignificantValue(3);   // 'd'  — index 13
-```
-
-Both take a signed offset, so a negative `n` walks the other way, into the default value. They throw `RangeError` only when the vector holds no entry at all, there being no position to measure from
-
-### `SV_vector.from(elements, defaultValue?)`
-
-Builds from an iterable of `SV_element`; entries strictly equal to the default are dropped; for a repeated index the last one wins
-
-### `SV_element<T>`
-
-```ts
-interface SV_element<T = number> {
-  index: number;
-  value: T;
-}
-```
-
-The serialization shape from the [project README](https://github.com/Calbona/sparse-vector#serialization). A faithful round trip:
-
-```ts
-const json = JSON.stringify(vector);
-const restored = SV_vector.from(JSON.parse(json) as SV_element<T>[], vector.defaultValue);
-```
+The significant-value methods take a signed offset, so a negative `n` walks the other way, into the default value. They throw `RangeError` only when the vector holds no entry at all
 
 ## Development
 
