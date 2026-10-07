@@ -4,25 +4,25 @@
 
 ## 概述
 
-- **稀疏向量不是向量**
+- **稀疏向量的定义**
 
-	它的“下标”既不从零开始，也不从左往右递增，而更像人实际写数字的方式：下标相当于位权，因此它能从正无穷一直延伸到负无穷。当然，语言里并没有无穷大，在 TypeScript 里它是 `number`，C++ 里是 `int64_t`，Rust 里是 `i64`。
+	稀疏向量不是数学上的向量，它更像你实际写数字的方式，“下标”从正无穷一直延伸到负无穷。当然，计算机的语言里没有无穷大，所以在 TypeScript 里它是 `number`，C++ 里是 `int64_t`，Rust 里是 `i64`。
 
-	既然不是数学意义上的向量，它自然也不带任何运算。从这个角度看，它其实也算一种字典，而且每个位权上确实都能存任意类型的数据。
+	既然不是向量，自然也不能做代数运算。
 
-- **稀疏向量的实现原理**
+- **稀疏向量的原理**
 
-	我们只存那些与默认值不同的位置。
+	你询问任何一个位权上的值，都能得到回应，这是怎样实现的呢？
 
-	把若干个叫“元素”的对象——每个是一个索引配上一个不同于默认值的值——排成一个列表，再加上默认值，噔噔，一个稀疏向量就完成了！不管下标落在哪里，只要只有 k 个元素，内存就是 O(k)。
+	我们只存与默认值不同的位置，另存一个默认值。你查那些没存的位置，向量就把默认值给你。
 
 ## 库
 
 | 语言 | 包 | 最新版本 | 状态 | README |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 2.0.0 | 已发布 | [`typescript/`](../typescript/) |
-| C++ | `sparse-vector` | 2.0.0 | 已发布 | [`c++/`](../c++/) |
-| Rust | `sparse-vector-rs` | 2.0.0 | 已发布 | [`rust/`](../rust/) |
+| TypeScript | `@calbona/sparse-vector` | 3.0.0 | 已发布 | [`typescript/`](../typescript/) |
+| C++ | `sparse-vector` | 3.0.0 | 已发布 | [`c++/`](../c++/) |
+| Rust | `sparse-vector-rs` | 3.0.0 | 已发布 | [`rust/`](../rust/) |
 
 ### TypeScript
 
@@ -60,69 +60,97 @@ cargo add sparse-vector-rs
 
 ## 语义详解
 
-### 空位默认值
+### 向量
 
-- 创建稀疏向量时指定一个默认值
+- 不是指数学上的向量，也不是指计算机里的数组，而是指库提供的这种特殊数据结构。
 
-- 默认值之后可以替换
+### 稀疏
 
-- 每个位权上都有确定的值，因此读取总有答案：任何整数都会返回一个值
+- 这就是说这个向量的容量远远大于它的元素个数，有些位权没有显式地存入数据。
 
-### 等于默认值的条目永远不被保留
+### 索引
 
-- 往某个位权写入默认值，等同于把那里原有的东西擦除
+- 向量的索引是全体整数，可正可负，它表示的是类似个位、十位这样的概念。
 
-- 替换默认值时会立即剔除那些等于默认值的条目
+### 值
 
-- 正是这个原则让结构保持稀疏
+- 我们真正想要存储的东西，类比于百位上的数字、千位上的数字，不过类型不一定是数，可以是任何东西。
+
+### 元素
+
+- 一个索引加一个值，组成的对象就叫元素，这些就是向量真正存储的东西。
+
+### 默认值
+
+- 稀疏向量没有被显式存入数据的地方，就是默认值，你可以类比于写数字时，不写的那些 0，我们一般会写 1，而不是写 0001.000，对吧？
+
+- 构造好向量之后，默认值是可以替换的，这很神奇，不知道能用来做什么，但我给你预留了这个能力。
+
+### 自动维持最小内存
+
+- 替换默认值时立即清除那些值等于默认值的元素。
+
+- 替换相等判定时也一样。
+
+- 往某个位权写入的值如果是默认值，相当于把那里原有的东西清除。
 
 ### 相等的判定
 
-- 条目是否等于默认值，照各语言日常的判定来：TypeScript 用 `===`，C++ 用 `operator==`，Rust 用 `PartialEq`
+- 值是否等于默认值？按照各语言日常的判定方法。
+	- TypeScript：`===`。
+	- C++：`operator==`。
+	- Rust：`PartialEq`。
 
-- 那些别扭的情形：
-	- `-0.0` 等于 `0.0`
-	- `NaN` 不等于它自己
-	- `0`、`'0'`、`false`、`null` 是四个不同类型的值
-	- `===` 比较的是对象的引用，而 `operator==` 与 `PartialEq` 比较的是结构，两个内容相同但彼此独立的对象，在 TypeScript 里是一个值，在 C++ 和 Rust 里是两个值，所以前者保留、后两者剔除
+- 你也可以给向量一个判定：它接收两个参数——待比较的值与当前默认值——返回布尔值，取代日常的判定。
 
-- 需要同一性时，就把它做进类型自身的相等里，用指针类型可以直接得到：`std::shared_ptr` 的 `operator==` 比较的是指针，`Rc<T>` 则可以用一个以 `Rc::ptr_eq` 比较的 newtype 包起来，具体见 C++ 与 Rust 的 README
+- 比较两个向量是两件具名的事，与剔除是两回事：`isEqualTo` / `is_equal_to` 判定两个向量是否相等，`differences` 列出接收者与对方不同的那些元素。两者都**以接收者的判定为准**，所以两边判定不同时，`a.isEqualTo(b)` 与 `b.isEqualTo(a)` 可以给出不同的答案。
+
+- 注意各语言的相等判定方法有一些可能违背直觉的情形。
+	- `NaN` 不等于它自己。
+	- `0`、`'0'`、`false`、`null` 类型都不同，所以不相等。
+	- `===` 比较的是对象的引用，而 `operator==` 与 `PartialEq` 比较的是结构。
 
 ## API
 
-| 作用 | TypeScript | C++ | Rust |
-| --- | --- | --- | --- |
-| 构造稀疏向量（默认值缺省） | `new SV_vector()` | `SV_vector()` | `SparseVector::new()`（仅 `f64`）/ `SparseVector::default()` |
-| 构造稀疏向量 | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::with_default(default)` |
-| 获取默认值 | `getDefaultValue` | `get_default_value()` | `get_default_value()` |
-| 修改默认值 | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` |
-| 获取条目数 | `getElementAmount` | `get_element_amount()` | `get_element_amount()` |
-| 获取有效维数 | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` |
-| 获取正有效维数 | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` |
-| 获取负有效维数 | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` |
-| 获取索引处的值 | `get(index)` | `get(index)` | `get(index)` |
-| 写入索引处的值 | `set(index, value)` | `set(index, value)` | `set(index, value)` |
-| 重置索引处的值 | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` |
-| 重置整个向量 | `resetVector()` | `reset_vector()` | `reset_vector()` |
-| 获取全部条目，按索引降序 | `elements()` | `elements()` | `elements()` |
-| 获取全部条目，按索引升序 | `invertedElements()` | `inverted_elements()` | `inverted_elements()` |
-| 获取全部非空索引，按索引降序 | `indexes()` | `indexes()` | `indexes()` |
-| 获取全部非空索引，按索引升序 | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` |
-| 获取全部非空值，按索引降序 | `values()` | `values()` | `values()` |
-| 获取全部非空值，按索引升序 | `invertedValues()` | `inverted_values()` | `inverted_values()` |
-| 获取从左数第 n+1 个条目 | `element(n)` | `element(n)` | `element(n)` |
-| 获取从左数第 n+1 个条目的索引 | `elementIndex(n)` | `element_index(n)` | `element_index(n)` |
-| 获取从左数第 n+1 个条目的值 | `elementValue(n)` | `element_value(n)` | `element_value(n)` |
-| 获取从右数第 n+1 个条目 | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` |
-| 获取从右数第 n+1 个条目的索引 | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` |
-| 获取从右数第 n+1 个条目的值 | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` |
-| 获取左起第 n+1 位有效数字 | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` |
-| 获取右起第 n+1 位有效数字 | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` |
-| 迭代 | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` |
-| 复制 | `clone()` | 拷贝构造 | `clone()` |
-| 批量构造 | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` |
+| 作用 | TypeScript | C++ | Rust | 返回类型 |
+| --- | --- | --- | --- | --- |
+| 构造向量（默认值缺省） | `new SV_vector()` | `SV_vector()` | `SparseVector::default_new()` | 新向量 |
+| 构造向量 | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::new(default)` | 新向量 |
+| 访问默认值 | `getDefaultValue` | `get_default_value()` | `get_default_value()` | ts 值，cpp、rust 引用 |
+| 更新默认值 | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` | ts 无，cpp、rust 布尔型 |
+| 访问相等判定 | `getEquality` | `get_equality()` | `get_equality()` | ts 判定或 `undefined`，cpp、rust 判定或空 |
+| 更新相等判定 | `setEquality = next` | `set_equality(next)` | `set_equality(next)` | ts 无，cpp、rust 布尔型 |
+| 获取元素数 | `getElementAmount` | `get_element_amount()` | `get_element_amount()` | 整数 |
+| 获取有效维数 | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` | 整数 |
+| 获取正有效维数 | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` | 整数 |
+| 获取负有效维数 | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` | 整数 |
+| 访问索引处的值 | `get(index)` | `get(index)` | `get(index)` | 值的类型 |
+| 更新索引处的值 | `set(index, value)` | `set(index, value)` | `set(index, value)` | 向量自身 |
+| 重置索引处的值 | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` | 布尔型 |
+| 重置整个向量，不重置默认值 | `resetVector()` | `reset_vector()` | `reset_vector()` | 布尔型 |
+| 访问全部元素，按索引降序 | `elements()` | `elements()` | `elements()` | 元素数组 |
+| 访问全部元素，按索引升序 | `invertedElements()` | `inverted_elements()` | `inverted_elements()` | 元素数组 |
+| 访问全部索引，降序 | `indexes()` | `indexes()` | `indexes()` | 索引数组 |
+| 访问全部索引，升序 | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` | 索引数组 |
+| 访问全部值，按索引降序 | `values()` | `values()` | `values()` | 值数组 |
+| 访问全部值，按索引升序 | `invertedValues()` | `inverted_values()` | `inverted_values()` | 值数组 |
+| 访问高位起第 n+1 个元素 | `element(n)` | `element(n)` | `element(n)` | 元素 |
+| 访问高位起第 n+1 个元素的索引 | `elementIndex(n)` | `element_index(n)` | `element_index(n)` | 索引 |
+| 访问高位起第 n+1 个元素的值 | `elementValue(n)` | `element_value(n)` | `element_value(n)` | 值 |
+| 访问低位起第 n+1 个元素 | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` | 元素 |
+| 访问低位起第 n+1 个元素的索引 | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` | 索引 |
+| 访问低位起第 n+1 个元素的值 | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` | 值 |
+| 访问高位起第 n+1 位有效数字 | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` | 值 |
+| 访问低位起第 n+1 位有效数字 | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` | 值 |
+| 迭代 | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` | 迭代器（按索引降序借出元素） |
+| 复制 | `clone()` | 拷贝构造 | `clone()` | 新向量 |
+| 批量构造 | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` | 新向量 |
+| 判定两个向量是否相等 | `isEqualTo(other)` | `is_equal_to(other)` | `is_equal_to(other)` | 布尔型 |
+| 列出与另一个向量不同的元素 | `differences(other)` | `differences(other)` | `differences(other)` | 元素数组 |
 
-*Rust 的取值与列举要求 `T: Clone`，写入、重置与改默认值要求 `T: PartialEq`；C++ 要求可拷贝与 `operator==`*
+*Rust 的取值与列举要求 `T: Clone`，写入、重置与改默认值要求 `T: PartialEq`，判定两个向量是否相等同样要求 `T: PartialEq`，求差还要求 `T: Clone`；C++ 要求可拷贝与 `operator==`*
+
+*求差的前提是两个默认值同类型且按接收者的判定相等，不满足则 TypeScript 抛 `TypeError`，C++ 抛 `std::invalid_argument`，Rust panic*
 
 *越界，或在空向量上取有效数字时，TypeScript 抛 `TypeError` / `RangeError`，C++ 抛 `std::out_of_range`，Rust panic*
 

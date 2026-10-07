@@ -1,4 +1,4 @@
-// Mirrors the `pruning of default-valued entries` block of the TypeScript suite.
+// Mirrors the `pruning of default-valued elements` block of the TypeScript suite.
 
 #include <limits>
 #include <optional>
@@ -27,7 +27,7 @@ SV_TEST(never_stores_a_value_equal_to_the_default) {
   SV_CHECK(vector.elements().empty());
 }
 
-SV_TEST(prunes_an_entry_that_becomes_the_default) {
+SV_TEST(prunes_an_element_that_becomes_the_default) {
   sv::SV_vector<> vector(0.0);
   vector.set(1, 5.0);
   SV_CHECK_EQ(vector.get_element_amount(), 1u);
@@ -50,7 +50,7 @@ SV_TEST(prunes_on_a_change_of_default_and_forgets_pruned_positions) {
   };
   SV_CHECK_EQ(vector.elements(), before);
 
-  vector.set_default_value(Value{});
+  SV_CHECK_EQ(vector.set_default_value(Value{}), true);
 
   const std::vector<sv::SV_element<Value>> after{
       sv::SV_element<Value>{2, Value{7}},
@@ -60,7 +60,7 @@ SV_TEST(prunes_on_a_change_of_default_and_forgets_pruned_positions) {
   SV_CHECK_EQ(vector.get_element_amount(), 1u);
 }
 
-SV_TEST(keeps_entries_that_were_pruned_earlier_gone) {
+SV_TEST(keeps_elements_that_were_pruned_earlier_gone) {
   using Value = std::optional<int>;
 
   sv::SV_vector<Value> vector{Value{0}};
@@ -68,8 +68,9 @@ SV_TEST(keeps_entries_that_were_pruned_earlier_gone) {
   vector.set(2, Value{7});
   SV_CHECK_EQ(vector.indexes(), std::vector<sv::index_type>{2});
 
-  vector.set_default_value(Value{});
-  vector.set_default_value(Value{0});
+  // Position 1 was dropped the moment it was written, so neither default prunes anything.
+  SV_CHECK_EQ(vector.set_default_value(Value{}), false);
+  SV_CHECK_EQ(vector.set_default_value(Value{0}), false);
 
   const std::vector<sv::SV_element<Value>> expected{
       sv::SV_element<Value>{2, Value{7}},
@@ -79,7 +80,7 @@ SV_TEST(keeps_entries_that_were_pruned_earlier_gone) {
 
 // The TypeScript case stores 0, '0', false and null, which are four distinct
 // types there and cannot share a single T here. Only an exact match drops an
-// entry, so the stand-in needs values that differ while looking alike.
+// element, so the stand-in needs values that differ while looking alike.
 SV_TEST(compares_exactly) {
   const std::string zero = "0";
   sv::SV_vector<std::string> vector(zero);
@@ -90,7 +91,7 @@ SV_TEST(compares_exactly) {
 }
 
 SV_TEST(documents_the_nan_caveat) {
-  // NaN != NaN, so a NaN entry is never pruned by a NaN default. Same behaviour
+  // NaN != NaN, so a NaN element is never pruned by a NaN default. Same behaviour
   // as the TypeScript implementation.
   sv::SV_vector<> vector(std::numeric_limits<double>::quiet_NaN());
   vector.set(1, std::numeric_limits<double>::quiet_NaN());

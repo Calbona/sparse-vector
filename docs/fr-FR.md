@@ -2,27 +2,27 @@
 
 # sparse-vector
 
-## Concept
+## Aperçu
 
-- **Un vecteur creux n'est pas un vecteur**
+- **Ce qu'est un vecteur creux**
 
-	Son « indice » ne commence pas à zéro et ne court pas de gauche à droite : il se lit plutôt comme un nombre écrit à la main, où l'indice fait office de poids de position, si bien qu'il s'étend de l'infini positif à l'infini négatif. Aucun langage n'a d'infini, bien sûr : c'est un `number` en TypeScript, un `int64_t` en C++ et un `i64` en Rust.
+	Un vecteur creux n'est pas un vecteur mathématique. Il se lit plutôt comme un nombre écrit à la main, où l'« indice » s'étend de l'infini positif à l'infini négatif. Aucun langage n'a d'infini, bien sûr : c'est un `number` en TypeScript, un `int64_t` en C++ et un `i64` en Rust.
 
-	Et comme ce n'est pas un vecteur mathématique, il ne comporte aucune arithmétique. En ce sens, c'est aussi un dictionnaire, et chaque position accepte réellement des données de n'importe quel type.
+	Comme ce n'est pas un vecteur, il ne fait pas d'arithmétique.
 
-- **Comment un vecteur creux est fait**
+- **Comment fonctionne un vecteur creux**
 
-	Seules les positions différentes de la valeur par défaut sont stockées.
+	On demande la valeur à n'importe quel poids de position et l'on obtient toujours une réponse : comment est-ce possible ?
 
-	On réunit donc plusieurs objets appelés « entrées » — un indice accompagné d'une valeur différente de la valeur par défaut — pour former une liste, on y ajoute la valeur par défaut, et voilà, le vecteur creux est prêt. Quels que soient les indices, s'il n'y a que k entrées, la mémoire est en O(k).
+	Seules les positions différentes de la valeur par défaut sont stockées : la valeur par défaut elle-même est stockée en plus. Lorsqu'on consulte une position où rien n'a été stocké, le vecteur renvoie la valeur par défaut.
 
 ## Bibliothèques
 
 | Langage | Paquet | Version | État | README |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 2.0.0 | publié | [`typescript/`](../typescript/) |
-| C++ | `sparse-vector` | 2.0.0 | publié | [`c++/`](../c++/) |
-| Rust | `sparse-vector-rs` | 2.0.0 | publié | [`rust/`](../rust/) |
+| TypeScript | `@calbona/sparse-vector` | 3.0.0 | publié | [`typescript/`](../typescript/) |
+| C++ | `sparse-vector` | 3.0.0 | publié | [`c++/`](../c++/) |
+| Rust | `sparse-vector-rs` | 3.0.0 | publié | [`rust/`](../rust/) |
 
 ### TypeScript
 
@@ -58,71 +58,99 @@ Un préfixe d'installation exporte aussi un paquet CMake, donc `find_package(spa
 cargo add sparse-vector-rs
 ```
 
-## Détails de la sémantique
+## Sémantique
 
-### La valeur par défaut des positions vides
+### Le vecteur
 
-- Un vecteur creux se crée avec une valeur par défaut
+- Ni un vecteur mathématique, ni un tableau informatique, mais la structure de données particulière que fournit cette bibliothèque.
 
-- Cette valeur par défaut peut être remplacée ensuite
+### Le caractère creux
 
-- Chaque position a une valeur définie, donc la lecture a toujours une réponse : tout entier renvoie une valeur
+- La capacité du vecteur dépasse de loin le nombre de ses éléments : certains poids de position n'ont jamais reçu de donnée explicite.
 
-### Une entrée égale à la valeur par défaut n'est jamais conservée
+### L'indice
 
-- Écrire la valeur par défaut dans une position revient à effacer ce qui s'y trouvait
+- L'indice est l'ensemble des entiers, positifs ou négatifs ; il représente quelque chose comme les unités ou les dizaines.
 
-- Remplacer la valeur par défaut écarte aussitôt les entrées qui lui sont égales
+### La valeur
 
-- C'est ce principe qui garde la structure creuse
+- Ce que l'on veut réellement stocker, l'équivalent du chiffre des centaines ou des milliers — à ceci près que le type n'est pas forcément un nombre. Ce peut être n'importe quoi.
+
+### L'élément
+
+- Un indice plus une valeur : l'objet ainsi formé s'appelle un élément, et ce sont les éléments que le vecteur stocke réellement.
+
+### La valeur par défaut
+
+- Là où un vecteur creux n'a rien stocké explicitement, c'est la valeur par défaut. C'est comme lorsqu'on écrit un nombre : on laisse tomber les zéros, on écrit 1 plutôt que 0001.000, n'est-ce pas ?
+
+- Une fois le vecteur construit, la valeur par défaut peut être remplacée. Étrange, on ne sait trop à quoi cela sert, mais la possibilité est là.
+
+### Mémoire minimale, maintenue automatiquement
+
+- Remplacer la valeur par défaut écarte aussitôt les éléments qui lui sont égaux.
+
+- Remplacer le prédicat d'égalité fait de même.
+
+- Écrire la valeur par défaut à un poids de position revient à effacer ce qui s'y trouvait.
 
 ### L'égalité
 
-- Qu'une entrée soit égale à la valeur par défaut suit la pratique habituelle de chaque langage : `===` en TypeScript, `operator==` en C++, `PartialEq` en Rust
+- Une valeur est-elle égale à la valeur par défaut ? Selon la méthode de comparaison habituelle de chaque langage.
+	- TypeScript : `===`.
+	- C++ : `operator==`.
+	- Rust : `PartialEq`.
 
-- Les cas délicats :
-	- `-0.0` est égal à `0.0`
-	- `NaN` n'est pas égal à lui-même
-	- `0`, `'0'`, `false` et `null` sont quatre valeurs de quatre types
-	- `===` compare les références d'objets, tandis qu'`operator==` et `PartialEq` comparent la structure : deux objets distincts au contenu identique forment une valeur en TypeScript et deux en C++ et Rust, donc le premier les conserve et les deux autres les écartent
+- Un prédicat peut aussi être fourni au vecteur : il reçoit deux paramètres (la valeur à comparer et la valeur par défaut courante), renvoie un booléen et remplace la comparaison habituelle.
 
-- Quand c'est l'identité qu'il vous faut, intégrez-la à l'égalité du type lui-même ; un type pointeur la donne sans détour : l'`operator==` de `std::shared_ptr` compare les pointeurs, et un `Rc<T>` peut être enveloppé dans un newtype comparant avec `Rc::ptr_eq`. Les README C++ et Rust détaillent cela
+- Comparer deux vecteurs, ce sont deux opérations nommées, distinctes de l'élagage : `isEqualTo` / `is_equal_to` détermine si deux vecteurs sont égaux, `differences` énumère les éléments par lesquels le récepteur diffère de l'autre. Toutes deux **décident d'après le prédicat du récepteur**, si bien que, quand les deux prédicats diffèrent, `a.isEqualTo(b)` et `b.isEqualTo(a)` peuvent donner des réponses différentes.
+
+- Attention, la méthode de comparaison de chaque langage a des cas qui peuvent heurter l'intuition.
+	- `NaN` n'est pas égal à lui-même.
+	- `0`, `'0'`, `false` et `null` sont de quatre types différents, donc ne sont pas égaux.
+	- `===` compare les références d'objets, tandis qu'`operator==` et `PartialEq` comparent la structure.
 
 ## API
 
-| Rôle | TypeScript | C++ | Rust |
-| --- | --- | --- | --- |
-| Construction d'un vecteur creux (valeur par défaut omise) | `new SV_vector()` | `SV_vector()` | `SparseVector::new()` (seulement `f64`) / `SparseVector::default()` |
-| Construction d'un vecteur creux | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::with_default(default)` |
-| Obtenir la valeur par défaut | `getDefaultValue` | `get_default_value()` | `get_default_value()` |
-| Changer la valeur par défaut | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` |
-| Obtenir le nombre d'entrées | `getElementAmount` | `get_element_amount()` | `get_element_amount()` |
-| Obtenir la dimension significative | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` |
-| Obtenir la dimension positive | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` |
-| Obtenir la dimension négative | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` |
-| Obtenir la valeur à un indice | `get(index)` | `get(index)` | `get(index)` |
-| Écrire la valeur à un indice | `set(index, value)` | `set(index, value)` | `set(index, value)` |
-| Réinitialiser la valeur à un indice | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` |
-| Réinitialiser tout le vecteur | `resetVector()` | `reset_vector()` | `reset_vector()` |
-| Obtenir toutes les entrées, indice décroissant | `elements()` | `elements()` | `elements()` |
-| Obtenir toutes les entrées, indice croissant | `invertedElements()` | `inverted_elements()` | `inverted_elements()` |
-| Obtenir tous les indices non vides, décroissant | `indexes()` | `indexes()` | `indexes()` |
-| Obtenir tous les indices non vides, croissant | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` |
-| Obtenir toutes les valeurs non vides, décroissant | `values()` | `values()` | `values()` |
-| Obtenir toutes les valeurs non vides, croissant | `invertedValues()` | `inverted_values()` | `inverted_values()` |
-| Obtenir la (n+1)-ième entrée depuis la gauche | `element(n)` | `element(n)` | `element(n)` |
-| L'indice de cette entrée | `elementIndex(n)` | `element_index(n)` | `element_index(n)` |
-| La valeur de cette entrée | `elementValue(n)` | `element_value(n)` | `element_value(n)` |
-| Obtenir la (n+1)-ième entrée depuis la droite | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` |
-| L'indice de cette entrée | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` |
-| La valeur de cette entrée | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` |
-| Obtenir le (n+1)-ième chiffre significatif en partant de la gauche | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` |
-| Obtenir le (n+1)-ième chiffre significatif en partant de la droite | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` |
-| Itération | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` |
-| Copie | `clone()` | construction par copie | `clone()` |
-| Construction en bloc | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` |
+| Rôle | TypeScript | C++ | Rust | Type de retour |
+| --- | --- | --- | --- | --- |
+| Construction d'un vecteur creux (valeur par défaut omise) | `new SV_vector()` | `SV_vector()` | `SparseVector::default_new()` | Nouveau vecteur |
+| Construction d'un vecteur creux | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::new(default)` | Nouveau vecteur |
+| Obtenir la valeur par défaut | `getDefaultValue` | `get_default_value()` | `get_default_value()` | valeur en ts, référence en cpp et rust |
+| Changer la valeur par défaut | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` | rien en ts, booléen en cpp et rust |
+| Obtenir le prédicat d'égalité | `getEquality` | `get_equality()` | `get_equality()` | prédicat ou `undefined` en ts, prédicat ou vide en cpp et rust |
+| Changer le prédicat d'égalité | `setEquality = next` | `set_equality(next)` | `set_equality(next)` | rien en ts, booléen en cpp et rust |
+| Obtenir le nombre d'éléments | `getElementAmount` | `get_element_amount()` | `get_element_amount()` | entier |
+| Obtenir la dimension significative | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` | entier |
+| Obtenir la dimension positive | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` | entier |
+| Obtenir la dimension négative | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` | entier |
+| Obtenir la valeur à un indice | `get(index)` | `get(index)` | `get(index)` | le type de la valeur |
+| Écrire la valeur à un indice | `set(index, value)` | `set(index, value)` | `set(index, value)` | le vecteur lui-même |
+| Réinitialiser la valeur à un indice | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` | booléen |
+| Réinitialiser tout le vecteur, sans toucher à la valeur par défaut | `resetVector()` | `reset_vector()` | `reset_vector()` | booléen |
+| Obtenir tous les éléments, indice décroissant | `elements()` | `elements()` | `elements()` | tableau d'éléments |
+| Obtenir tous les éléments, indice croissant | `invertedElements()` | `inverted_elements()` | `inverted_elements()` | tableau d'éléments |
+| Obtenir tous les indices, décroissant | `indexes()` | `indexes()` | `indexes()` | tableau d'indices |
+| Obtenir tous les indices, croissant | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` | tableau d'indices |
+| Obtenir toutes les valeurs, décroissant | `values()` | `values()` | `values()` | tableau de valeurs |
+| Obtenir toutes les valeurs, croissant | `invertedValues()` | `inverted_values()` | `inverted_values()` | tableau de valeurs |
+| Obtenir le (n+1)-ième élément depuis la gauche | `element(n)` | `element(n)` | `element(n)` | élément |
+| L'indice de cet élément | `elementIndex(n)` | `element_index(n)` | `element_index(n)` | indice |
+| La valeur de cet élément | `elementValue(n)` | `element_value(n)` | `element_value(n)` | valeur |
+| Obtenir le (n+1)-ième élément depuis la droite | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` | élément |
+| L'indice de cet élément | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` | indice |
+| La valeur de cet élément | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` | valeur |
+| Obtenir le (n+1)-ième chiffre significatif en partant de la gauche | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` | valeur |
+| Obtenir le (n+1)-ième chiffre significatif en partant de la droite | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` | valeur |
+| Itération | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` | itérateur (prête les éléments par indice décroissant) |
+| Copie | `clone()` | construction par copie | `clone()` | nouveau vecteur |
+| Construction en bloc | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` | nouveau vecteur |
+| Déterminer si deux vecteurs sont égaux | `isEqualTo(other)` | `is_equal_to(other)` | `is_equal_to(other)` | booléen |
+| Énumérer les éléments qui diffèrent de l'autre vecteur | `differences(other)` | `differences(other)` | `differences(other)` | tableau d'éléments |
 
-*En Rust, obtenir la valeur et énumérer exige `T: Clone`, tandis qu'écrire, réinitialiser ou changer la valeur par défaut exige `T: PartialEq` ; en C++, de même, il faut que le type soit copiable et dispose d'`operator==`*
+*En Rust, obtenir la valeur et énumérer exigent `T: Clone`, tandis qu'écrire, réinitialiser ou changer la valeur par défaut exige `T: PartialEq` ; juger deux vecteurs égaux exige lui aussi `T: PartialEq`, et `differences` exige en plus `T: Clone` ; en C++, il faut que le type soit copiable et dispose d'un `operator==`*
+
+*`differences` suppose que les deux valeurs par défaut soient du même type et égales selon le prédicat du récepteur ; sinon, TypeScript lève `TypeError`, C++ lève `std::invalid_argument` et Rust panique*
 
 *Hors limites, ou pour mesurer un chiffre significatif sur un vecteur vide, TypeScript lève `TypeError` / `RangeError`, C++ lève `std::out_of_range` et Rust panique*
 

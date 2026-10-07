@@ -4,25 +4,23 @@
 
 ## Überblick
 
-- **Ein dünnbesetzter Vektor ist kein Vektor**
+- **Was ein dünnbesetzter Vektor ist**
 
-	Sein „Index“ beginnt nicht bei null und läuft nicht von links nach rechts, sondern funktioniert eher wie eine von Hand geschriebene Zahl: Der Index vertritt das Stellenwertgewicht, sodass er von plus unendlich bis minus unendlich reicht. Natürlich kennt keine Sprache Unendlichkeiten: In TypeScript ist es ein `number`, in C++ ein `int64_t` und in Rust ein `i64`.
+	Ein dünnbesetzter Vektor ist kein mathematischer Vektor. Er liest sich wie eine von Hand geschriebene Zahl, sein „Index“ reicht von plus unendlich bis minus unendlich. Natürlich kennt keine Sprache Unendlichkeiten: In TypeScript ist es ein `number`, in C++ ein `int64_t` und in Rust ein `i64`.
 
-	Und da er kein mathematischer Vektor ist, trägt er keine Arithmetik. Insofern ist er auch ein Wörterbuch, und jede Position nimmt tatsächlich Daten beliebigen Typs auf.
+	Da er kein Vektor ist, kennt er auch keine Arithmetik.
 
-- **Wie ein dünnbesetzter Vektor entsteht**
+- **Wie ein dünnbesetzter Vektor funktioniert**
 
-	Gespeichert werden nur die Positionen, die vom Standardwert abweichen.
-
-	Man nimmt also mehrere Objekte namens „Einträge“ — je ein Index mit einem vom Standardwert abweichenden Wert —, reiht sie zu einer Liste auf, fügt den Standardwert hinzu, und schon steht er da, der dünnbesetzte Vektor. Wo die Indizes auch liegen: k Einträge bedeuten O(k) Speicher.
+	Wie kommt es, dass man nach dem Wert an einem beliebigen Stellenwertgewicht fragen kann und stets eine Antwort erhält? Gespeichert werden nur die Positionen, die vom Standardwert abweichen, dazu der Standardwert selbst. Fragt man eine Position ab, an der nichts gespeichert wurde, gibt der Vektor den Standardwert zurück.
 
 ## Bibliotheken
 
 | Sprache | Paket | Version | Status | README |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 2.0.0 | veröffentlicht | [`typescript/`](../typescript/) |
-| C++ | `sparse-vector` | 2.0.0 | veröffentlicht | [`c++/`](../c++/) |
-| Rust | `sparse-vector-rs` | 2.0.0 | veröffentlicht | [`rust/`](../rust/) |
+| TypeScript | `@calbona/sparse-vector` | 3.0.0 | veröffentlicht | [`typescript/`](../typescript/) |
+| C++ | `sparse-vector` | 3.0.0 | veröffentlicht | [`c++/`](../c++/) |
+| Rust | `sparse-vector-rs` | 3.0.0 | veröffentlicht | [`rust/`](../rust/) |
 
 ### TypeScript
 
@@ -60,69 +58,97 @@ cargo add sparse-vector-rs
 
 ## Semantik
 
-### Der Standardwert einer leeren Position
+### Vektor
 
-- Ein dünnbesetzter Vektor wird mit einem Standardwert angelegt
+- Weder ein mathematischer Vektor noch ein Array, sondern die besondere Datenstruktur, die diese Bibliothek bereitstellt.
 
-- Dieser Standardwert lässt sich später ersetzen
+### Dünnbesetzt
 
-- Jede Position hat einen definierten Wert, das Lesen hat also stets eine Antwort: Jede ganze Zahl liefert einen Wert
+- Die Kapazität übersteigt die Anzahl der Elemente bei Weitem: Manche Stellenwertgewichte wurden nie ausdrücklich gespeichert.
 
-### Ein Eintrag gleich dem Standardwert wird nie behalten
+### Index
 
-- Den Standardwert in eine Position zu schreiben, löscht alles, was dort stand
+- Alle ganzen Zahlen, positiv oder negativ. Er steht für etwas wie die Einer- oder die Zehnerstelle.
 
-- Beim Ersetzen des Standardwerts werden die ihm gleichen Einträge sofort entfernt
+### Wert
 
-- Genau dieses Prinzip hält die Struktur dünn besetzt
+- Das, was eigentlich gespeichert werden soll, das Gegenstück zur Ziffer an der Hunderter- oder Tausenderstelle — nur muss der Typ keine Zahl sein. Er kann alles sein.
+
+### Element
+
+- Ein Index plus ein Wert. Dieses Objekt heißt Element, und Elemente sind das, was der Vektor wirklich speichert.
+
+### Standardwert
+
+- Jede Position, an der nichts ausdrücklich gespeichert wurde, trägt den Standardwert. Vergleichbar mit dem Schreiben einer Zahl: Die Nullen lässt man weg, man schreibt 1 statt 0001.000, oder?
+
+- Ist der Vektor einmal gebaut, lässt sich der Standardwert ersetzen. Seltsam — wer weiß, wofür —, aber die Möglichkeit besteht.
+
+### Automatisch minimaler Speicher
+
+- Beim Ersetzen des Standardwerts werden sofort alle Elemente entfernt, deren Wert ihm gleich ist.
+
+- Beim Ersetzen des Gleichheitsprädikats geschieht dasselbe.
+
+- Wird an eine Position der Standardwert geschrieben, löscht das den bisherigen Inhalt.
 
 ### Gleichheit
 
-- Ob ein Eintrag dem Standardwert gleich ist, richtet sich nach der üblichen Praxis der jeweiligen Sprache: `===` in TypeScript, `operator==` in C++, `PartialEq` in Rust
+- Ist ein Wert gleich dem Standardwert? Nach der üblichen Prüfung der jeweiligen Sprache.
+	- TypeScript: `===`.
+	- C++: `operator==`.
+	- Rust: `PartialEq`.
 
-- Die heiklen Fälle:
-	- `-0.0` ist gleich `0.0`
-	- `NaN` ist nicht gleich sich selbst
-	- `0`, `'0'`, `false` und `null` sind vier Werte aus vier Typen
-	- `===` vergleicht Objektreferenzen, `operator==` und `PartialEq` vergleichen dagegen die Struktur: Zwei verschiedene Objekte mit gleichem Inhalt sind in TypeScript ein Wert und in C++ und Rust zwei, die erste Umsetzung behält sie also und die beiden anderen verwerfen sie
+- Man kann dem Vektor auch ein eigenes Prädikat mitgeben: Es nimmt den zu vergleichenden Wert und den aktuellen Standardwert entgegen und liefert einen booleschen Wert; es tritt an die Stelle der üblichen Prüfung.
 
-- Wenn Identität gefragt ist, baut man sie in die Gleichheit des Typs selbst ein; ein Zeigertyp liefert sie direkt: Der `operator==` von `std::shared_ptr` vergleicht Zeiger, und ein `Rc<T>` lässt sich in einen Newtype packen, der mit `Rc::ptr_eq` vergleicht. Die READMEs zu C++ und Rust geben das Rezept
+- Das Vergleichen zweier Vektoren umfasst zwei benannte Vorgänge und ist nicht dasselbe wie das Ausdünnen: `isEqualTo` / `is_equal_to` entscheidet, ob zwei Vektoren gleich sind, `differences` listet die Elemente auf, in denen der Empfänger vom anderen abweicht. Beide **richten sich nach dem Prädikat des Empfängers**; tragen die beiden verschiedene Prädikate, können `a.isEqualTo(b)` und `b.isEqualTo(a)` unterschiedliche Antworten geben.
+
+- Die üblichen Gleichheitsprüfungen der einzelnen Sprachen kennen einige Fälle, die der Intuition widersprechen.
+	- `NaN` ist nicht gleich sich selbst.
+	- `0`, `'0'`, `false` und `null` haben vier verschiedene Typen, sind also nicht gleich.
+	- `===` vergleicht Objektreferenzen, `operator==` und `PartialEq` vergleichen dagegen die Struktur.
 
 ## API
 
-| Zweck | TypeScript | C++ | Rust |
-| --- | --- | --- | --- |
-| Konstruktion eines dünnbesetzten Vektors (Standardwert weggelassen) | `new SV_vector()` | `SV_vector()` | `SparseVector::new()` (nur `f64`) / `SparseVector::default()` |
-| Konstruktion eines dünnbesetzten Vektors | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::with_default(default)` |
-| Standardwert lesen | `getDefaultValue` | `get_default_value()` | `get_default_value()` |
-| Standardwert ändern | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` |
-| Anzahl der Einträge lesen | `getElementAmount` | `get_element_amount()` | `get_element_amount()` |
-| Signifikante Dimension lesen | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` |
-| Positive Dimension lesen | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` |
-| Negative Dimension lesen | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` |
-| Wert an einem Index lesen | `get(index)` | `get(index)` | `get(index)` |
-| Wert an einem Index schreiben | `set(index, value)` | `set(index, value)` | `set(index, value)` |
-| Wert an einem Index zurücksetzen | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` |
-| Den ganzen Vektor zurücksetzen | `resetVector()` | `reset_vector()` | `reset_vector()` |
-| Alle Einträge, Index absteigend | `elements()` | `elements()` | `elements()` |
-| Alle Einträge, Index aufsteigend | `invertedElements()` | `inverted_elements()` | `inverted_elements()` |
-| Alle belegten Indizes, absteigend | `indexes()` | `indexes()` | `indexes()` |
-| Alle belegten Indizes, aufsteigend | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` |
-| Alle belegten Werte, absteigend | `values()` | `values()` | `values()` |
-| Alle belegten Werte, aufsteigend | `invertedValues()` | `inverted_values()` | `inverted_values()` |
-| Den (n+1)-ten Eintrag von links | `element(n)` | `element(n)` | `element(n)` |
-| Dessen Index | `elementIndex(n)` | `element_index(n)` | `element_index(n)` |
-| Dessen Wert | `elementValue(n)` | `element_value(n)` | `element_value(n)` |
-| Den (n+1)-ten Eintrag von rechts | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` |
-| Dessen Index | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` |
-| Dessen Wert | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` |
-| Die (n+1)-te signifikante Stelle von links | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` |
-| Die (n+1)-te signifikante Stelle von rechts | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` |
-| Iteration | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` |
-| Kopie | `clone()` | Kopierkonstruktor | `clone()` |
-| Massenkonstruktion | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` |
+| Zweck | TypeScript | C++ | Rust | Rückgabetyp |
+| --- | --- | --- | --- | --- |
+| Konstruktion eines dünnbesetzten Vektors (Standardwert weggelassen) | `new SV_vector()` | `SV_vector()` | `SparseVector::default_new()` | Neuer Vektor |
+| Konstruktion eines dünnbesetzten Vektors | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::new(default)` | Neuer Vektor |
+| Standardwert lesen | `getDefaultValue` | `get_default_value()` | `get_default_value()` | ts Wert, cpp/rust Referenz |
+| Standardwert ändern | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` | ts nichts, cpp/rust boolesch |
+| Gleichheitsprädikat lesen | `getEquality` | `get_equality()` | `get_equality()` | ts Prädikat oder `undefined`, cpp/rust Prädikat oder leer |
+| Gleichheitsprädikat ändern | `setEquality = next` | `set_equality(next)` | `set_equality(next)` | ts nichts, cpp/rust boolesch |
+| Anzahl der Elemente lesen | `getElementAmount` | `get_element_amount()` | `get_element_amount()` | Ganzzahl |
+| Signifikante Dimension lesen | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` | Ganzzahl |
+| Positive Dimension lesen | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` | Ganzzahl |
+| Negative Dimension lesen | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` | Ganzzahl |
+| Wert an einem Index lesen | `get(index)` | `get(index)` | `get(index)` | Typ des Werts |
+| Wert an einem Index schreiben | `set(index, value)` | `set(index, value)` | `set(index, value)` | Der Vektor selbst |
+| Wert an einem Index zurücksetzen | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` | Boolesch |
+| Den ganzen Vektor zurücksetzen, ohne den Standardwert | `resetVector()` | `reset_vector()` | `reset_vector()` | Boolesch |
+| Alle Elemente, Index absteigend | `elements()` | `elements()` | `elements()` | Element-Array |
+| Alle Elemente, Index aufsteigend | `invertedElements()` | `inverted_elements()` | `inverted_elements()` | Element-Array |
+| Alle belegten Indizes, absteigend | `indexes()` | `indexes()` | `indexes()` | Index-Array |
+| Alle belegten Indizes, aufsteigend | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` | Index-Array |
+| Alle belegten Werte, absteigend | `values()` | `values()` | `values()` | Wert-Array |
+| Alle belegten Werte, aufsteigend | `invertedValues()` | `inverted_values()` | `inverted_values()` | Wert-Array |
+| Das (n+1)-te Element von links | `element(n)` | `element(n)` | `element(n)` | Element |
+| Dessen Index | `elementIndex(n)` | `element_index(n)` | `element_index(n)` | Index |
+| Dessen Wert | `elementValue(n)` | `element_value(n)` | `element_value(n)` | Wert |
+| Das (n+1)-te Element von rechts | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` | Element |
+| Dessen Index | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` | Index |
+| Dessen Wert | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` | Wert |
+| Die (n+1)-te signifikante Stelle von links | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` | Wert |
+| Die (n+1)-te signifikante Stelle von rechts | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` | Wert |
+| Iteration | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` | Iterator (leiht Elemente nach Index absteigend aus) |
+| Kopie | `clone()` | Kopierkonstruktor | `clone()` | Neuer Vektor |
+| Massenkonstruktion | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` | Neuer Vektor |
+| Gleichheit zweier Vektoren prüfen | `isEqualTo(other)` | `is_equal_to(other)` | `is_equal_to(other)` | Boolesch |
+| Vom anderen Vektor abweichende Elemente auflisten | `differences(other)` | `differences(other)` | `differences(other)` | Element-Array |
 
-*In Rust verlangen Lesen und Auflisten `T: Clone`, Schreiben, Zurücksetzen und Ändern des Standardwerts `T: PartialEq`; in C++ entsprechend Kopierbarkeit und `operator==`*
+*In Rust verlangen Lesen und Auflisten `T: Clone`, Schreiben, Zurücksetzen und Ändern des Standardwerts `T: PartialEq`; das Prüfen zweier Vektoren auf Gleichheit verlangt ebenfalls `T: PartialEq`, das Bilden der Differenz zusätzlich `T: Clone`; in C++ Kopierbarkeit und `operator==`*
+
+*Voraussetzung für die Differenz ist, dass beide Standardwerte denselben Typ haben und nach dem Prädikat des Empfängers gleich sind; andernfalls wirft TypeScript `TypeError`, C++ wirft `std::invalid_argument`, Rust gerät in Panik*
 
 *Bei einem Index außerhalb des Bereichs oder beim Messen einer signifikanten Stelle auf einem leeren Vektor wirft TypeScript `TypeError` / `RangeError`, C++ wirft `std::out_of_range` und Rust gerät in Panik*
 

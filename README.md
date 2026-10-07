@@ -4,25 +4,23 @@
 
 ## Overview
 
-- **A sparse vector is not a vector**
+- **What a sparse vector is**
 
-	Its "index" does not start at zero and does not run left to right. It works the way a number is written by hand, the index standing in for the positional weight, so it reaches from positive infinity down to negative infinity. No language has infinities, of course: it is a `number` in TypeScript, an `int64_t` in C++ and an `i64` in Rust.
+	A sparse vector is not a mathematical vector. It reads the way a number is written by hand, its "index" reaching from positive infinity down to negative infinity. No language has infinities, of course: it is a `number` in TypeScript, an `int64_t` in C++ and an `i64` in Rust.
 
-	And since it is not a mathematical vector, it carries no arithmetic. In that sense it is also a dictionary, and every position really does hold data of any type.
+	Not being a vector, it carries no arithmetic.
 
-- **How a sparse vector is built**
+- **How one works**
 
-	Only the positions that differ from the default value are stored.
-
-	So take several objects called "entries", each an index paired with a value that differs from the default, lay them out as a list, add the default value, and there it is: a sparse vector. Wherever the indices fall, k entries means O(k) memory.
+	Ask for the value at any positional weight and you get an answer — how? Only the positions differing from the default value are stored, plus the default itself. Ask about a position nothing was stored at and the vector hands you the default.
 
 ## Lib
 
 | Language | Package | Version | Status | README |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 2.0.0 | released | [`typescript/`](typescript/) |
-| C++ | `sparse-vector` | 2.0.0 | released | [`c++/`](c++/) |
-| Rust | `sparse-vector-rs` | 2.0.0 | released | [`rust/`](rust/) |
+| TypeScript | `@calbona/sparse-vector` | 3.0.0 | released | [`typescript/`](typescript/) |
+| C++ | `sparse-vector` | 3.0.0 | released | [`c++/`](c++/) |
+| Rust | `sparse-vector-rs` | 3.0.0 | released | [`rust/`](rust/) |
 
 ### TypeScript
 
@@ -60,33 +58,55 @@ cargo add sparse-vector-rs
 
 ## Semantics
 
-### The default value of an empty position
+### Vector
 
-- A sparse vector is created with a default value
+- Not a mathematical vector, and not a computer array, but the data structure this library provides.
 
-- That default value can be replaced later
+### Sparse
 
-- Every position holds a defined value, so reading always has an answer: any integer returns a value
+- The capacity far exceeds the element count: some positional weights were never explicitly stored.
 
-### An entry equal to the default value is never kept
+### Index
 
-- Writing the default value into a position is the same as erasing whatever was there
+- Every integer, positive or negative. It stands for something like the units or the tens place.
 
-- Replacing the default value immediately drops the entries equal to it
+### Value
 
-- That is the principle that keeps the structure sparse
+- What we actually want to store, the counterpart of the digit in the hundreds or the thousands place — except that the type need not be a number. It can be anything.
+
+### Element
+
+- One index plus one value. That object is an element, and elements are what the vector really stores.
+
+### Default value
+
+- Every position with nothing explicitly stored holds the default value. Think of writing a number: you leave the zeros out, you write 1 rather than 0001.000.
+
+- Once the vector is built, the default value can be replaced. Strange, who knows what for, but the ability is there.
+
+### Minimal memory, kept automatically
+
+- Replacing the default value immediately drops the elements equal to it.
+
+- Replacing the equality predicate does the same.
+
+- Writing the default value into a position erases whatever was there.
 
 ### Equality
 
-- Whether an entry equals the default value follows each language's ordinary practice: `===` in TypeScript, `operator==` in C++, `PartialEq` in Rust
+- Is a value equal to the default? By each language's ordinary test.
+	- TypeScript: `===`.
+	- C++: `operator==`.
+	- Rust: `PartialEq`.
 
-- The awkward cases:
-	- `-0.0` equals `0.0`
-	- `NaN` does not equal itself
-	- `0`, `'0'`, `false` and `null` are four values of four types
-	- `===` compares object references, while `operator==` and `PartialEq` compare structure: two distinct objects with equal contents are one value in TypeScript and two in C++ and Rust, so the first keeps them and the other two drop them
+- You can also hand the vector a predicate — the value under test and the current default, returning a boolean — and it replaces the ordinary test.
 
-- When you need identity, build it into the type's own equality, and a pointer type gives it to you directly: `std::shared_ptr`'s `operator==` compares pointers, and an `Rc<T>` can be wrapped in a newtype comparing with `Rc::ptr_eq` — the C++ and Rust READMEs each give that recipe
+- Comparing two vectors is two named operations, and not the same thing as pruning: `isEqualTo` / `is_equal_to` decides whether two vectors are equal, `differences` lists the elements where the receiver differs from the other. Both **answer under the receiver's predicate**, so two vectors carrying different predicates can make `a.isEqualTo(b)` and `b.isEqualTo(a)` disagree.
+
+- These ordinary tests have some counter-intuitive corners.
+	- `NaN` does not equal itself.
+	- `0`, `'0'`, `false` and `null` are of four types, so they are not equal.
+	- `===` compares object references, while `operator==` and `PartialEq` compare structure.
 
 ## License
 

@@ -33,13 +33,13 @@ describe('introspection', () => {
     assert.deepEqual(vector.invertedValues(), ['b', 'c', 'e']);
 
     // The ordinal trio numbers the inverted listing: invertedElement(n) is
-    // invertedElements()[n], read from its first entry.
+    // invertedElements()[n], read from its first element.
     const listed = vector.invertedElements();
     assert.equal(vector.invertedIndexes()[0], listed[0]?.index);
     assert.deepEqual(vector.invertedElement(1), listed[1]);
   });
 
-  it('reports the entry count', () => {
+  it('reports the element count', () => {
     const vector = new SV_vector<string>('');
     assert.equal(vector.getElementAmount, 0);
 
@@ -50,17 +50,17 @@ describe('introspection', () => {
     assert.equal(vector.getElementAmount, 0);
   });
 
-  it('measures the span between the outermost entries', () => {
+  it('measures the span between the outermost elements', () => {
     const vector = new SV_vector<string>('');
     // Nothing stored spans nothing.
     assert.equal(vector.getSignificantDimension, 0);
 
     vector.set(-3, 'a');
-    // A single entry spans itself.
+    // A single element spans itself.
     assert.equal(vector.getSignificantDimension, 1);
 
     // -2 through 5 inclusive: the positions in between count, so this is not
-    // the entry count.
+    // the element count.
     const span = new SV_vector<string>('');
     span.set(5, 'e');
     span.set(-2, 'b');
@@ -106,7 +106,7 @@ describe('introspection', () => {
     ]);
   });
 
-  it('serialises to its explicit entries only', () => {
+  it('serialises to its explicit elements only', () => {
     const vector = new SV_vector<string | number>(0);
     vector.set(1, 'a');
     vector.set(2, 0);
@@ -128,14 +128,14 @@ describe('introspection', () => {
     assert.equal(copy.getDefaultValue, 9);
   });
 
-  it('reaches an entry by ordinal', () => {
+  it('reaches an element by ordinal', () => {
     const vector = new SV_vector<string>('');
     vector.set(-2, 'b');
     vector.set(0, 'c');
     vector.set(5, 'e');
 
-    // Ordinals number the entries, not the positions: 0 is the leftmost stored
-    // entry however far out its index lies.
+    // Ordinals number the elements, not the positions: 0 is the leftmost stored
+    // element however far out its index lies.
     assert.deepEqual(vector.element(0), { index: 5, value: 'e' });
     assert.deepEqual(vector.element(2), { index: -2, value: 'b' });
     assert.equal(vector.elementIndex(1), 0);
@@ -154,11 +154,11 @@ describe('introspection', () => {
     assert.equal(vector.invertedElementValue(1), 'c');
   });
 
-  it('refuses an ordinal without a matching entry', () => {
+  it('refuses an ordinal without a matching element', () => {
     const vector = new SV_vector<string>('');
     vector.set(1, 'a');
 
-    // One entry stored, so ordinal 0 reaches it and ordinal 1 is past the end.
+    // One element stored, so ordinal 0 reaches it and ordinal 1 is past the end.
     assert.throws(() => vector.element(1), RangeError);
     assert.throws(() => vector.elementIndex(1), RangeError);
     assert.throws(() => vector.elementValue(1), RangeError);
@@ -177,21 +177,21 @@ describe('introspection', () => {
     assert.throws(() => empty.invertedElement(0), RangeError);
   });
 
-  it('measures significant positions from the first entry', () => {
+  it('measures significant positions from the first element', () => {
     const vector = new SV_vector<string>('');
     vector.set(10, 'a');
     vector.set(13, 'd');
 
-    // The leftmost entry is the most significant digit.
+    // The leftmost element is the most significant digit.
     assert.equal(vector.leftSignificantValue(0), 'd');
-    // Positions holding no entry count, like the zeros inside a number.
+    // Positions holding no element count, like the zeros inside a number.
     assert.equal(vector.leftSignificantValue(2), '');
     assert.equal(vector.leftSignificantValue(3), 'a');
-    // A negative offset walks off the left of that first entry, into the default.
+    // A negative offset walks off the left of that first element, into the default.
     assert.equal(vector.leftSignificantValue(-1), '');
   });
 
-  it('measures significant positions from the last entry', () => {
+  it('measures significant positions from the last element', () => {
     const vector = new SV_vector<string>('');
     vector.set(10, 'a');
     vector.set(13, 'd');
@@ -213,7 +213,7 @@ describe('introspection', () => {
     const vector = new SV_vector(0);
     vector.set(Number.MAX_SAFE_INTEGER, 1);
 
-    // The only entry is the anchor, so a step either way lands where nothing is
+    // The only element is the anchor, so a step either way lands where nothing is
     // stored. Leftward it also leaves the safe integer range, where positions
     // can no longer be told apart.
     assert.equal(vector.leftSignificantValue(0), 1);

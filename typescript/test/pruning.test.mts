@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 // Tests run against the built artifact, which is what consumers actually get.
 import { SV_vector } from '../dist/index.js';
 
-describe('pruning of default-valued entries', () => {
+describe('pruning of default-valued elements', () => {
   it('never stores a value equal to the default', () => {
     const vector = new SV_vector();
     vector.set(1, 0);
@@ -12,7 +12,7 @@ describe('pruning of default-valued entries', () => {
     assert.deepEqual(vector.elements(), []);
   });
 
-  it('prunes an entry that becomes the default', () => {
+  it('prunes an element that becomes the default', () => {
     const vector = new SV_vector(0);
     vector.set(1, 5);
     assert.equal(vector.getElementAmount, 1);
@@ -39,7 +39,7 @@ describe('pruning of default-valued entries', () => {
     assert.equal(vector.getElementAmount, 1);
   });
 
-  it('keeps entries that were pruned earlier gone', () => {
+  it('keeps elements that were pruned earlier gone', () => {
     const vector = new SV_vector<number | null>(0);
     vector.set(1, 0);
     vector.set(2, 7);

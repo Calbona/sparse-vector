@@ -4,25 +4,25 @@
 
 ## La idea
 
-- **Un vector disperso no es un vector**
+- **Qué es un vector disperso**
 
-	Su «índice» no empieza en cero ni recorre de izquierda a derecha: se parece más a como se escribe un número a mano, donde el índice hace de peso posicional, de modo que abarca desde el infinito positivo hasta el negativo. Por supuesto, ningún lenguaje tiene infinito de verdad: en TypeScript es `number`, en C++ `int64_t` y en Rust `i64`.
+	Un vector disperso no es un vector matemático: se parece más bien a la forma en que escribes un número a mano, con el «índice» extendiéndose desde el infinito positivo hasta el negativo. Claro que ningún lenguaje tiene infinito de verdad, así que en TypeScript es `number`, en C++ `int64_t` y en Rust `i64`.
 
-	Y como no es un vector matemático, no incorpora aritmética alguna. En ese sentido también es un diccionario, y además cada posición admite datos de cualquier tipo.
+	Y, al no ser un vector, tampoco admite aritmética de ningún tipo.
 
-- **Cómo está hecho un vector disperso**
+- **Cómo funciona un vector disperso**
 
-	Solo se almacenan las posiciones distintas del valor por defecto.
+	Pregunta por el valor de cualquier peso posicional y siempre obtienes respuesta. ¿Cómo se consigue?
 
-	Así, con varios objetos llamados «entradas» —un índice junto con un valor distinto del valor por defecto— formamos una lista, le añadimos el valor por defecto y ya está: el vector disperso queda listo. Sea cual sea el índice, si solo hay k entradas, la memoria es O(k).
+	Solo guardamos las posiciones cuyo valor difiere del valor por defecto y, además, el propio valor por defecto. Así, cuando consultas una posición donde no se guardó nada, el vector te devuelve el valor por defecto.
 
 ## Bibliotecas
 
 | Lenguaje | Paquete | Versión | Estado | README |
 | --- | --- | --- | --- | --- |
-| TypeScript | `@calbona/sparse-vector` | 2.0.0 | publicado | [`typescript/`](../typescript/) |
-| C++ | `sparse-vector` | 2.0.0 | publicado | [`c++/`](../c++/) |
-| Rust | `sparse-vector-rs` | 2.0.0 | publicado | [`rust/`](../rust/) |
+| TypeScript | `@calbona/sparse-vector` | 3.0.0 | publicado | [`typescript/`](../typescript/) |
+| C++ | `sparse-vector` | 3.0.0 | publicado | [`c++/`](../c++/) |
+| Rust | `sparse-vector-rs` | 3.0.0 | publicado | [`rust/`](../rust/) |
 
 ### TypeScript
 
@@ -60,69 +60,97 @@ cargo add sparse-vector-rs
 
 ## Detalles de la semántica
 
-### El valor por defecto de las posiciones vacías
+### El vector
 
-- Al crear el vector se indica un valor por defecto
+- No se refiere a un vector matemático ni a un array de la informática, sino a esta estructura de datos especial que ofrece la biblioteca.
 
-- Ese valor por defecto se puede sustituir después
+### Disperso
 
-- Toda posición tiene un valor definido, así que leer siempre tiene respuesta: cualquier entero devuelve un valor
+- Significa que la capacidad del vector supera con creces su número de elementos: algunos pesos posicionales nunca se almacenaron de forma explícita.
 
-### Una entrada igual al valor por defecto nunca se conserva
+### El índice
 
-- Escribir el valor por defecto en una posición equivale a borrar lo que hubiera ahí
+- El índice del vector es el conjunto de todos los enteros, positivos o negativos; representa algo así como las unidades o las decenas.
 
-- Al sustituir el valor por defecto se descartan de inmediato las entradas iguales a él
+### El valor
 
-- Este principio es lo que mantiene dispersa la estructura
+- Lo que de verdad queremos almacenar, el análogo del dígito de las centenas o de los millares; eso sí, el tipo no tiene por qué ser un número: puede ser cualquier cosa.
+
+### El elemento
+
+- Un índice más un valor componen un objeto llamado elemento, y los elementos son lo que el vector almacena de verdad.
+
+### El valor por defecto
+
+- Toda posición del vector disperso donde no se almacenó nada de forma explícita tiene el valor por defecto. Piénsalo como cuando escribes un número: te ahorras los ceros y escribes 1 en lugar de 0001.000, ¿verdad?
+
+- Una vez construido el vector, el valor por defecto se puede sustituir. Es curioso, no sé muy bien para qué servirá, pero te he reservado esa capacidad.
+
+### Memoria mínima mantenida automáticamente
+
+- Al sustituir el valor por defecto, se descartan de inmediato los elementos iguales a él.
+
+- Lo mismo al sustituir el predicado de igualdad.
+
+- Escribir el valor por defecto en un peso posicional equivale a borrar lo que hubiera allí.
 
 ### La igualdad
 
-- Que una entrada sea igual al valor por defecto se decide según la práctica habitual de cada lenguaje: `===` en TypeScript, `operator==` en C++, `PartialEq` en Rust
+- ¿Un valor es igual al valor por defecto? Según el método habitual de cada lenguaje.
+	- TypeScript: `===`.
+	- C++: `operator==`.
+	- Rust: `PartialEq`.
 
-- Los casos incómodos:
-	- `-0.0` es igual a `0.0`
-	- `NaN` no es igual a sí mismo
-	- `0`, `'0'`, `false` y `null` son cuatro valores de cuatro tipos
-	- `===` compara referencias de objetos, mientras que `operator==` y `PartialEq` comparan la estructura: dos objetos distintos con el mismo contenido son un valor en TypeScript y dos en C++ y Rust, así que el primero los conserva y los otros dos los descartan
+- También puedes darle al vector un predicado: recibe el valor a comparar y el valor por defecto actual y devuelve un booleano; sustituye al método habitual.
 
-- Cuando haga falta identidad, incorpórala a la igualdad del propio tipo; un tipo puntero te la da directamente: el `operator==` de `std::shared_ptr` compara punteros, y un `Rc<T>` puede envolverse en un newtype que compare con `Rc::ptr_eq`. Los README de C++ y de Rust lo detallan
+- Comparar dos vectores comprende dos operaciones con nombre propio y no es lo mismo que el descarte: `isEqualTo` / `is_equal_to` decide si dos vectores son iguales, y `differences` enumera los elementos en que el receptor difiere del otro. Ambas **se rigen por el predicado del receptor**; si los dos llevan predicados distintos, `a.isEqualTo(b)` y `b.isEqualTo(a)` pueden dar respuestas diferentes.
+
+- Ojo: los métodos de igualdad de cada lenguaje tienen algunos casos que pueden resultar contraintuitivos.
+	- `NaN` no es igual a sí mismo.
+	- `0`, `'0'`, `false` y `null` son de tipos distintos, así que no son iguales.
+	- `===` compara la referencia de los objetos, mientras que `operator==` y `PartialEq` comparan la estructura.
 
 ## API
 
-| Para qué | TypeScript | C++ | Rust |
-| --- | --- | --- | --- |
-| Construcción de un vector disperso (valor por defecto omitido) | `new SV_vector()` | `SV_vector()` | `SparseVector::new()` (solo `f64`) / `SparseVector::default()` |
-| Construcción de un vector disperso | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::with_default(default)` |
-| Obtener el valor por defecto | `getDefaultValue` | `get_default_value()` | `get_default_value()` |
-| Cambiar el valor por defecto | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` |
-| Obtener el número de entradas | `getElementAmount` | `get_element_amount()` | `get_element_amount()` |
-| Obtener la dimensión significativa | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` |
-| Obtener la dimensión positiva | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` |
-| Obtener la dimensión negativa | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` |
-| Obtener el valor en un índice | `get(index)` | `get(index)` | `get(index)` |
-| Escribir el valor en un índice | `set(index, value)` | `set(index, value)` | `set(index, value)` |
-| Restablecer el valor en un índice | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` |
-| Restablecer todo el vector | `resetVector()` | `reset_vector()` | `reset_vector()` |
-| Obtener todas las entradas, índice descendente | `elements()` | `elements()` | `elements()` |
-| Obtener todas las entradas, índice ascendente | `invertedElements()` | `inverted_elements()` | `inverted_elements()` |
-| Obtener todos los índices no vacíos, descendente | `indexes()` | `indexes()` | `indexes()` |
-| Obtener todos los índices no vacíos, ascendente | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` |
-| Obtener todos los valores no vacíos, descendente | `values()` | `values()` | `values()` |
-| Obtener todos los valores no vacíos, ascendente | `invertedValues()` | `inverted_values()` | `inverted_values()` |
-| Obtener la (n+1)-ésima entrada desde la izquierda | `element(n)` | `element(n)` | `element(n)` |
-| El índice de esa entrada | `elementIndex(n)` | `element_index(n)` | `element_index(n)` |
-| El valor de esa entrada | `elementValue(n)` | `element_value(n)` | `element_value(n)` |
-| Obtener la (n+1)-ésima entrada desde la derecha | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` |
-| El índice de esa entrada | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` |
-| El valor de esa entrada | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` |
-| Obtener el (n+1)-ésimo dígito significativo por la izquierda | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` |
-| Obtener el (n+1)-ésimo dígito significativo por la derecha | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` |
-| Iteración | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` |
-| Copia | `clone()` | construcción por copia | `clone()` |
-| Construcción en bloque | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` |
+| Para qué | TypeScript | C++ | Rust | Tipo de retorno |
+| --- | --- | --- | --- | --- |
+| Construir un vector (valor por defecto omitido) | `new SV_vector()` | `SV_vector()` | `SparseVector::default_new()` | Nuevo vector |
+| Construir un vector | `new SV_vector(defaultValue)` | `SV_vector(defaultValue)` | `SparseVector::new(default)` | Nuevo vector |
+| Acceder al valor por defecto | `getDefaultValue` | `get_default_value()` | `get_default_value()` | ts: valor; cpp, rust: referencia |
+| Actualizar el valor por defecto | `setDefaultValue = next` | `set_default_value(next)` | `set_default_value(next)` | ts: ninguno; cpp, rust: booleano |
+| Acceder al predicado de igualdad | `getEquality` | `get_equality()` | `get_equality()` | ts: predicado o `undefined`; cpp, rust: predicado o vacío |
+| Actualizar el predicado de igualdad | `setEquality = next` | `set_equality(next)` | `set_equality(next)` | ts: ninguno; cpp, rust: booleano |
+| Obtener el número de elementos | `getElementAmount` | `get_element_amount()` | `get_element_amount()` | Entero |
+| Obtener la dimensión significativa | `getSignificantDimension` | `get_significant_dimension()` | `get_significant_dimension()` | Entero |
+| Obtener la dimensión positiva | `getPlusDimension` | `get_plus_dimension()` | `get_plus_dimension()` | Entero |
+| Obtener la dimensión negativa | `getMinusDimension` | `get_minus_dimension()` | `get_minus_dimension()` | Entero |
+| Obtener el valor en un índice | `get(index)` | `get(index)` | `get(index)` | El tipo del valor |
+| Escribir el valor en un índice | `set(index, value)` | `set(index, value)` | `set(index, value)` | El propio vector |
+| Restablecer el valor en un índice | `resetValue(index)` | `reset_value(index)` | `reset_value(index)` | Booleano |
+| Restablecer todo el vector, sin tocar el valor por defecto | `resetVector()` | `reset_vector()` | `reset_vector()` | Booleano |
+| Obtener todos los elementos, índice descendente | `elements()` | `elements()` | `elements()` | Array de elementos |
+| Obtener todos los elementos, índice ascendente | `invertedElements()` | `inverted_elements()` | `inverted_elements()` | Array de elementos |
+| Obtener todos los índices, descendente | `indexes()` | `indexes()` | `indexes()` | Array de índices |
+| Obtener todos los índices, ascendente | `invertedIndexes()` | `inverted_indexes()` | `inverted_indexes()` | Array de índices |
+| Obtener todos los valores, descendente | `values()` | `values()` | `values()` | Array de valores |
+| Obtener todos los valores, ascendente | `invertedValues()` | `inverted_values()` | `inverted_values()` | Array de valores |
+| Obtener el (n+1)-ésimo elemento desde la izquierda | `element(n)` | `element(n)` | `element(n)` | Elemento |
+| El índice de ese elemento | `elementIndex(n)` | `element_index(n)` | `element_index(n)` | Índice |
+| El valor de ese elemento | `elementValue(n)` | `element_value(n)` | `element_value(n)` | Valor |
+| Obtener el (n+1)-ésimo elemento desde la derecha | `invertedElement(n)` | `inverted_element(n)` | `inverted_element(n)` | Elemento |
+| El índice de ese elemento | `invertedElementIndex(n)` | `inverted_element_index(n)` | `inverted_element_index(n)` | Índice |
+| El valor de ese elemento | `invertedElementValue(n)` | `inverted_element_value(n)` | `inverted_element_value(n)` | Valor |
+| Obtener el (n+1)-ésimo dígito significativo por la izquierda | `leftSignificantValue(n)` | `left_significant_value(n)` | `left_significant_value(n)` | Valor |
+| Obtener el (n+1)-ésimo dígito significativo por la derecha | `rightSignificantValue(n)` | `right_significant_value(n)` | `right_significant_value(n)` | Valor |
+| Iteración | `[Symbol.iterator]()` | `begin()` / `end()` | `iter()` | Iterador (presta los elementos en índice descendente) |
+| Copia | `clone()` | construcción por copia | `clone()` | Nuevo vector |
+| Construcción en bloque | `SV_vector.fromElements(elements, defaultValue?)` | `SV_vector::from_elements(...)` | `SparseVector::from_elements(elements, default)` | Nuevo vector |
+| Comprobar si dos vectores son iguales | `isEqualTo(other)` | `is_equal_to(other)` | `is_equal_to(other)` | Booleano |
+| Listar los elementos que difieren de otro vector | `differences(other)` | `differences(other)` | `differences(other)` | Array de elementos |
 
-*En Rust, obtener el valor y enumerar exige `T: Clone`, y escribir, restablecer o cambiar el valor por defecto exige `T: PartialEq`; en C++, de forma análoga, hace falta que el tipo sea copiable y disponga de `operator==`*
+*En Rust, obtener el valor y enumerar exige `T: Clone`, y escribir, restablecer o cambiar el valor por defecto exige `T: PartialEq`; comprobar si dos vectores son iguales exige también `T: PartialEq`, y calcular la diferencia exige además `T: Clone`; en C++, de forma análoga, hace falta que el tipo sea copiable y disponga de `operator==`*
+
+*Calcular la diferencia exige que los dos valores por defecto sean del mismo tipo y que, según el predicado del receptor, sean iguales; si no se cumple, TypeScript lanza `TypeError`, C++ lanza `std::invalid_argument` y Rust entra en pánico*
 
 *Fuera de rango, o al medir un dígito significativo en un vector vacío, TypeScript lanza `TypeError` / `RangeError`, C++ lanza `std::out_of_range` y Rust entra en pánico*
 

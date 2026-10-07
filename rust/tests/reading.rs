@@ -4,7 +4,7 @@ use sparse_vector::SparseVector;
 
 #[test]
 fn answers_for_any_integer_negatives_included() {
-    let mut vector = SparseVector::new();
+    let mut vector = SparseVector::default_new();
     vector.set(-3, 3.0);
     assert_eq!(vector.get(-3), 3.0);
     assert_eq!(vector.get(3), 0.0);
@@ -23,7 +23,7 @@ fn stores_values_of_any_type() {
         Text(String),
     }
 
-    let mut vector: SparseVector<Value> = SparseVector::with_default(Value::Object(0));
+    let mut vector: SparseVector<Value> = SparseVector::new(Value::Object(0));
     vector.set(0, Value::Object(1));
     vector.set(1, Value::Flag(false));
     vector.set(2, Value::Text("text".to_string()));

@@ -2,4 +2,7 @@ typescript/node_modules/
 typescript/dist/
 rust/target/
 c++/build/
+benchmark/cpp/*.exe
+benchmark/cpp/*.obj
+benchmark/rust/target/
 agent.md

@@ -1,0 +1,8 @@
+[package]
+name = "sparse-vector-benchmark"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+sparse-vector-rs = { path = "../../rust" }

@@ -50,7 +50,7 @@ SV_TEST(lists_the_inverted_views_in_ascending_index_order) {
   SV_CHECK_EQ(vector.inverted_values(), expected_values);
 
   // The ordinal trio numbers the inverted listing: inverted_element(n) is
-  // inverted_elements()[n], read from its first entry. Named locals because
+  // inverted_elements()[n], read from its first element. Named locals because
   // SV_CHECK_EQ binds a reference to each side, which a temporary cannot survive.
   const std::vector<sv::SV_element<std::string>> listed = vector.inverted_elements();
   const std::vector<sv::index_type> listed_indexes = vector.inverted_indexes();
@@ -58,7 +58,7 @@ SV_TEST(lists_the_inverted_views_in_ascending_index_order) {
   SV_CHECK_EQ(vector.inverted_element(1), listed[1]);
 }
 
-SV_TEST(reports_the_entry_count) {
+SV_TEST(reports_the_element_count) {
   const std::string empty;
   sv::SV_vector<std::string> vector(empty);
   SV_CHECK_EQ(vector.get_element_amount(), 0u);
@@ -70,17 +70,17 @@ SV_TEST(reports_the_entry_count) {
   SV_CHECK_EQ(vector.get_element_amount(), 0u);
 }
 
-SV_TEST(measures_the_span_between_the_outermost_entries) {
+SV_TEST(measures_the_span_between_the_outermost_elements) {
   sv::SV_vector<std::string> vector(std::string(""));
   // Nothing stored spans nothing.
   SV_CHECK_EQ(vector.get_significant_dimension(), 0);
 
   vector.set(-3, "a");
-  // A single entry spans itself.
+  // A single element spans itself.
   SV_CHECK_EQ(vector.get_significant_dimension(), 1);
 
   // -2 through 5 inclusive: the positions in between count, so this is not the
-  // entry count.
+  // element count.
   sv::SV_vector<std::string> span(std::string(""));
   span.set(5, "e");
   span.set(-2, "b");
@@ -132,7 +132,7 @@ SV_TEST(is_iterable) {
   SV_CHECK_EQ(seen, expected);
 }
 
-SV_TEST(serialises_to_its_explicit_entries_only) {
+SV_TEST(serialises_to_its_explicit_elements_only) {
   const std::string empty;
   sv::SV_vector<std::string> vector(empty);
   vector.set(1, "a");
@@ -149,18 +149,85 @@ SV_TEST(clones_independently) {
   sv::SV_vector<std::string> vector(empty);
   vector.set(1, "a");
 
+  // Read before copying. The C++ container answers ordered reads out of an index it keeps, and
+  // that index points into the storage it was built from, so a copy must build its own rather
+  // than inherit one. Writing over the original right after is what would expose a shared index:
+  // it would hand the copy the original's new value.
+  (void)vector.indexes();
+
   // The copy constructor is clone(); there is no member of that name.
   sv::SV_vector<std::string> copy = vector;
+  vector.set(1, "changed");
+  const std::vector<std::string> mine{"a"};
+  SV_CHECK_EQ(copy.values(), mine);
+
   copy.set(2, "b");
   copy.set_default_value("nine");
 
   const std::vector<sv::SV_element<std::string>> expected{
+      sv::SV_element<std::string>{2, "b"},
       sv::SV_element<std::string>{1, "a"},
   };
-  SV_CHECK_EQ(vector.elements(), expected);
+  SV_CHECK_EQ(copy.elements(), expected);
   SV_CHECK_EQ(vector.get_default_value(), std::string(""));
   SV_CHECK_EQ(copy.get_element_amount(), 2u);
   SV_CHECK_EQ(copy.get_default_value(), std::string("nine"));
+
+  const std::vector<sv::index_type> both{2, 1};
+  SV_CHECK_EQ(copy.indexes(), both);
+
+  const std::vector<std::string> theirs{"changed"};
+  SV_CHECK_EQ(vector.values(), theirs);
+}
+
+// No TypeScript counterpart: it pins the ordered index the C++ container keeps on top of its hash
+// map. The index is dropped when the set of stored indices changes and kept when a value is merely
+// overwritten, so both paths have to read back fresh.
+SV_TEST(reflects_a_write_made_after_a_read) {
+  const std::string empty;
+  sv::SV_vector<std::string> vector(empty);
+  vector.set(1, "a");
+  vector.set(3, "c");
+  (void)vector.indexes();  // builds the ordered index
+
+  vector.set(5, "e");  // a new index, so the order has to change
+  const std::vector<sv::index_type> descending{5, 3, 1};
+  SV_CHECK_EQ(vector.indexes(), descending);
+  SV_CHECK_EQ(vector.element(0), (sv::SV_element<std::string>{5, "e"}));
+
+  vector.set(3, "changed");  // an existing index, so the order stands but the value must not
+  SV_CHECK_EQ(vector.indexes(), descending);
+  const std::vector<std::string> values{"e", "changed", "a"};
+  SV_CHECK_EQ(vector.values(), values);
+
+  SV_CHECK(vector.reset_value(3));
+  const std::vector<sv::index_type> shortened{5, 1};
+  SV_CHECK_EQ(vector.indexes(), shortened);
+
+  SV_CHECK(vector.reset_vector());
+  SV_CHECK_EQ(vector.indexes().size(), 0u);
+  SV_CHECK_EQ(vector.get_default_value(), std::string(""));
+}
+
+// No TypeScript counterpart: neither TypeScript nor Rust has a move.
+SV_TEST(moves_without_carrying_a_stale_order) {
+  const std::string empty;
+  sv::SV_vector<std::string> source(empty);
+  source.set(4, "d");
+  source.set(-2, "b");
+  (void)source.indexes();
+
+  sv::SV_vector<std::string> moved = std::move(source);
+  const std::vector<sv::index_type> descending{4, -2};
+  SV_CHECK_EQ(moved.indexes(), descending);
+  SV_CHECK_EQ(moved.element_value(0), std::string("d"));
+
+  sv::SV_vector<std::string> assigned(empty);
+  assigned.set(9, "i");
+  (void)assigned.indexes();
+  assigned = moved;
+  SV_CHECK_EQ(assigned.indexes(), descending);
+  SV_CHECK_EQ(assigned.get_element_amount(), 2u);
 }
 
 // No TypeScript counterpart. Fails the day someone swaps the storage for an
@@ -195,15 +262,15 @@ SV_TEST(supports_the_whole_int64_index_range) {
   SV_CHECK_EQ(vector.get_element_amount(), 2u);
 }
 
-SV_TEST(reaches_an_entry_by_ordinal) {
+SV_TEST(reaches_an_element_by_ordinal) {
   const std::string empty;
   sv::SV_vector<std::string> vector(empty);
   vector.set(-2, "b");
   vector.set(0, "c");
   vector.set(5, "e");
 
-  // Ordinals number the entries, not the positions: 0 is the leftmost stored
-  // entry however far out its index lies.
+  // Ordinals number the elements, not the positions: 0 is the leftmost stored
+  // element however far out its index lies.
   const sv::SV_element<std::string> first{5, "e"};
   const sv::SV_element<std::string> third{-2, "b"};
   SV_CHECK_EQ(vector.element(0), first);
@@ -227,12 +294,12 @@ SV_TEST(counts_from_the_inverted_end_by_ordinal) {
   SV_CHECK_EQ(vector.inverted_element_value(1), std::string("c"));
 }
 
-SV_TEST(refuses_an_ordinal_without_a_matching_entry) {
+SV_TEST(refuses_an_ordinal_without_a_matching_element) {
   const std::string empty;
   sv::SV_vector<std::string> vector(empty);
   vector.set(1, "a");
 
-  // One entry stored, so ordinal 0 reaches it and ordinal 1 is past the end.
+  // One element stored, so ordinal 0 reaches it and ordinal 1 is past the end.
   SV_CHECK_THROWS(vector.element(1), std::out_of_range);
   SV_CHECK_THROWS(vector.element_index(1), std::out_of_range);
   SV_CHECK_THROWS(vector.element_value(1), std::out_of_range);
@@ -245,22 +312,22 @@ SV_TEST(refuses_an_ordinal_without_a_matching_entry) {
   SV_CHECK_THROWS(none.inverted_element(0), std::out_of_range);
 }
 
-SV_TEST(measures_significant_positions_from_the_first_entry) {
+SV_TEST(measures_significant_positions_from_the_first_element) {
   const std::string empty;
   sv::SV_vector<std::string> vector(empty);
   vector.set(10, "a");
   vector.set(13, "d");
 
-  // The leftmost entry is the most significant digit.
+  // The leftmost element is the most significant digit.
   SV_CHECK_EQ(vector.left_significant_value(0), std::string("d"));
-  // Positions holding no entry count, like the zeros inside a number.
+  // Positions holding no element count, like the zeros inside a number.
   SV_CHECK_EQ(vector.left_significant_value(2), empty);
   SV_CHECK_EQ(vector.left_significant_value(3), std::string("a"));
-  // A negative offset walks off the left of that first entry, into the default.
+  // A negative offset walks off the left of that first element, into the default.
   SV_CHECK_EQ(vector.left_significant_value(-1), empty);
 }
 
-SV_TEST(measures_significant_positions_from_the_last_entry) {
+SV_TEST(measures_significant_positions_from_the_last_element) {
   const std::string empty;
   sv::SV_vector<std::string> vector(empty);
   vector.set(10, "a");
@@ -288,7 +355,7 @@ SV_TEST(handles_a_position_at_the_edge_of_the_index_range) {
 
   sv::SV_vector<> high;
   high.set(highest, 1.0);
-  // One entry, anchoring both methods: one step below it is reachable from
+  // One element, anchoring both methods: one step below it is reachable from
   // either end, one step above it is not.
   SV_CHECK_EQ(high.left_significant_value(0), 1.0);
   SV_CHECK_EQ(high.left_significant_value(1), 0.0);

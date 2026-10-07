@@ -7,4 +7,4 @@ mod element;
 mod vector;
 
 pub use element::Element;
-pub use vector::{Iter, SparseVector};
+pub use vector::{Equality, Iter, SparseVector};

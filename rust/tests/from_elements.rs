@@ -59,7 +59,7 @@ fn takes_a_default_value() {
 // elements(), which is the contract.
 #[test]
 fn round_trips_when_the_default_is_carried_alongside() {
-    let mut original = SparseVector::with_default("none");
+    let mut original = SparseVector::new("none");
     original.set(-1, "a");
     original.set(10, "b");
 

@@ -6,6 +6,7 @@ add_executable(sv_tests
   test_reading.cpp
   test_writing.cpp
   test_pruning.cpp
+  test_equality.cpp
   test_introspection.cpp
   test_from_elements.cpp)
 

@@ -16,7 +16,7 @@ describe('writing', () => {
     assert.equal(vector.getElementAmount, 1);
   });
 
-  it('resets one entry to the default value', () => {
+  it('resets one element to the default value', () => {
     const vector = new SV_vector<string>('');
     vector.set(1, 'a');
     assert.equal(vector.resetValue(1), true);
@@ -25,11 +25,13 @@ describe('writing', () => {
     assert.equal(vector.resetValue(1), false);
   });
 
-  it('resets every entry but keeps the default', () => {
+  it('resets every element but keeps the default', () => {
     const vector = new SV_vector<string>('gone');
+    assert.equal(vector.resetVector(), false);
     vector.set(1, 'a');
     vector.set(-2, 'b');
-    vector.resetVector();
+    assert.equal(vector.resetVector(), true);
+    assert.equal(vector.resetVector(), false);
     assert.equal(vector.getElementAmount, 0);
     assert.equal(vector.getDefaultValue, 'gone');
     assert.equal(vector.get(1), 'gone');

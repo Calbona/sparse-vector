@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.0.0 — 2026-10-07
+
+### Added
+
+A settable equality predicate, in all three implementations. It takes the value under test and the current default value, returns a boolean, and replaces the language's ordinary comparison everywhere the default value is compared, pruning included.
+
+Whole-vector comparison, in all three implementations: `isEqualTo` / `is_equal_to` answers whether two vectors are equal, and `differences` lists the elements where the receiver diverges from the other. Both answer under the receiver's predicate, so two vectors carrying different predicates can disagree about who equals whom.
+
+### Changed
+
+Writing and resetting now report what happened: resetting an index reports whether there was anything there to reset, resetting the vector reports whether it held anything at all, and replacing the default value reports whether anything was pruned.
+
+The Rust constructors are now `SparseVector::new(default)` and `SparseVector::default_new()`; `with_default` is gone, and `default_new` draws on any `T: Default` rather than being implemented for `f64` alone.
+
+What the vector stores is now called an element everywhere — the documentation in all ten languages and the source comments alike.
+
+The C++ implementation stores its elements unordered and serves the descending order it promises from an index rebuilt on demand. Reading one vector from two threads at once is no longer safe, and `begin()`, `end()` and `get_plus_dimension()` no longer promise not to throw.
+
+### Version bumps
+
+- `typescript-v3.0.0`
+- `cpp-v3.0.0`
+- `rust-v3.0.0`
+
 ## 2.0.0 — 2026-09-24
 
 ### Changed

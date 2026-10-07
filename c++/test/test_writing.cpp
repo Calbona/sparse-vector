@@ -30,13 +30,15 @@ SV_TEST(resets_to_the_default_value) {
   SV_CHECK_EQ(vector.reset_value(1), false);
 }
 
-SV_TEST(resets_every_entry_but_keeps_the_default) {
+SV_TEST(resets_every_element_but_keeps_the_default) {
   const std::string gone = "gone";
   sv::SV_vector<std::string> vector(gone);
+  SV_CHECK_EQ(vector.reset_vector(), false);
   vector.set(1, "a");
   vector.set(-2, "b");
 
-  vector.reset_vector();
+  SV_CHECK_EQ(vector.reset_vector(), true);
+  SV_CHECK_EQ(vector.reset_vector(), false);
   SV_CHECK_EQ(vector.get_element_amount(), 0u);
   SV_CHECK_EQ(vector.get_default_value(), std::string("gone"));
   SV_CHECK_EQ(vector.get(1), std::string("gone"));
